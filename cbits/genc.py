@@ -47,8 +47,10 @@ class ArgInfo(object):
         return "ArgInfo(\"%s\", %d)" % (self.name, self.outputarg)
 
 def close(s):
-    return s[:-2] + ");"            # strip trailing comma and space, and close
-                                    # the prototype
+    if s[-1] != "(":
+        return s[:-2] + ");"          # strip trailing comma and space, and close the prototype
+    else:                               
+        return s + ");"
 
 class FuncInfo(object):
     def __init__(self, classname, name, cname, rettype, isconstructor, args):
@@ -72,7 +74,8 @@ class FuncInfo(object):
 
     def get_wrapper_prototype(self):
         full_fname = self.get_wrapper_name()
-        proto = "%s %s(" % (self.rettype, full_fname)
+        ret = self.classname + "*" if self.isconstructor else self.rettype
+        proto = "%s %s(" % (ret, full_fname)
         for arg in self.args:
             proto += "%s %s, " % (arg.tp, arg.name) 
 
@@ -82,11 +85,16 @@ class FuncInfo(object):
         proto = self.get_wrapper_prototype()[:-1]
         code = "%s {\n" % (proto,)
 
-        call = "\t%s(" % (self.classname if self.isconstructor else self.cname,)
+        ret = "" if self.rettype == "void" else "return "
+        if self.isconstructor:
+            call = "new %s(" % self.isconstructor
+        else:
+            call = "%s(" % self.cname
+
         for arg in self.args:
             call += arg.name + ", "  
         
-        code += close(call)
+        code += "\t" + ret + close(call)
         code += "\n}\n"
 
         return code
