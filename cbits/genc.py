@@ -1,11 +1,13 @@
 from __future__ import print_function
-import hdr_parser, sys, re, os
-from string import Template
+import hdr_parser
+import re
+import sys
 
 if sys.version_info[0] >= 3:
     from io import StringIO
 else:
     from cStringIO import StringIO
+
 
 class ConstInfo(object):
     def __init__(self, name, val):
@@ -16,6 +18,7 @@ class ConstInfo(object):
         if self.name.startswith("CV") and self.name[2] != "_":
             self.name = "CV_" + self.name[2:]
         self.value = val
+
 
 class ArgInfo(object):
     def __init__(self, arg_tuple):
@@ -47,19 +50,23 @@ class ArgInfo(object):
         self.py_outputarg = False
 
     def isbig(self):
-        return self.tp == "Mat" or self.tp == "vector_Mat"# or self.tp.startswith("vector")
+        return self.tp == "Mat" or self.tp == "vector_Mat"
 
     def crepr(self):
         return "ArgInfo(\"%s\", %d)" % (self.name, self.outputarg)
 
+
 def close(s):
     if s[-1] != "(":
-        return s[:-2] + ");"          # strip trailing comma and space, and close the prototype
-    else:                               
+        # strip trailing comma and space, and close the prototype
+        return s[:-2] + ");"
+    else:
         return s + ");"
 
+
 class FuncInfo(object):
-    def __init__(self, classname, name, cname, rettype, isconstructor, ismethod, args):
+    def __init__(self, classname, name, cname,
+                 rettype, isconstructor, ismethod, args):
         self.classname = classname
         self.name = name
         self.cname = cname
@@ -68,7 +75,7 @@ class FuncInfo(object):
         self.args = args
         self.rettype = rettype
         if ismethod:
-            self_arg = ArgInfo((classname + "*","self", None, []))
+            self_arg = ArgInfo((classname + "*", "self", None, []))
             self.args = [self_arg] + self.args
         self.ismethod = ismethod
 
@@ -90,7 +97,7 @@ class FuncInfo(object):
             if arg.isarray:
                 proto += "%s* %s, " % (arg.tp, arg.name)
             else:
-                proto += "%s %s, " % (arg.tp, arg.name) 
+                proto += "%s %s, " % (arg.tp, arg.name)
 
         return close(proto)
 
@@ -108,16 +115,17 @@ class FuncInfo(object):
         elif self.ismethod:
             prefix = "self->"
             args = args[1:]
-            
+
         call = prefix + "%s(" % (postfix,)
 
         for arg in args:
-            call += arg.name + ", "  
-        
+            call += arg.name + ", "
+
         code += "\t" + ret + close(call)
         code += "\n}\n"
 
         return code
+
 
 class CWrapperGenerator(object):
     def __init__(self):
@@ -129,13 +137,12 @@ class CWrapperGenerator(object):
         self.source = StringIO()
         self.header = StringIO()
 
-
     def add_const(self, name, decl):
         constinfo = ConstInfo(name, decl[1])
 
         if constinfo.name in self.consts:
-            print("Generator error: constant %s (cname=%s) already exists" \
-                    % (constinfo.name, constinfo.cname))
+            print("Generator error: constant %s (cname=%s) already exists"
+                  % (constinfo.name, constinfo.cname))
             sys.exit(-1)
         self.consts[constinfo.name] = constinfo
 
@@ -143,12 +150,12 @@ class CWrapperGenerator(object):
         classname = bareclassname = ""
         name = decl[0]           # looks like cv{.classname}*.func
         dpos = name.rfind(".")
-        if dpos >=0 and name[:dpos] != "cv":
+        if dpos >= 0 and name[:dpos] != "cv":
             classname = bareclassname = re.sub(r"^cv\.", "", name[:dpos])
-            name = name[dpos+1:]
+            name = name[dpos + 1:]
             dpos = classname.rfind(".")
-            if dpos >= 0:                               
-                bareclassname = classname[dpos+1:]
+            if dpos >= 0:
+                bareclassname = classname[dpos + 1:]
                 classname = classname.replace(".", "_")
 
         cname = name
@@ -159,12 +166,12 @@ class CWrapperGenerator(object):
         cname = cname.replace(".", "::")
 
         args = list(map(ArgInfo, decl[3]))
-        
+
         if name in self.funcs.keys():
             #overloaded function...
             name += str(len(args))
 
-        self.funcs[name] = FuncInfo(bareclassname, name, cname, 
+        self.funcs[name] = FuncInfo(bareclassname, name, cname,
                                     decl[1], isconstructor, ismethod, args)
 
     def save(self, path, name, buf):
@@ -173,12 +180,22 @@ class CWrapperGenerator(object):
         f.close()
 
     def gen_const_reg(self, constinfo):
-        self.header.write("#define %s %s\n" % (constinfo.name, constinfo.value))
+        self.header.write("#define %s %s\n"
+                          % (constinfo.name, constinfo.value))
 
-    def gen(self, srcfiles, output_path):
-        self.clear()
+    def prep_src(self):
+        self.source.write("extern \"C\" {\n")
+        self.source.write("using namespace cv;\n")
+        self.source.write("#include \"opencv_generated.hpp\"\n")
+
+    def finalize_and_write(self, output_path):
+        self.source.write("}")
+        self.save(output_path, "opencv_generated.hpp", self.header)
+        self.save(output_path, "opencv_generated.cpp", self.source)
+
+    def readHeaders(self, srcfiles):
         parser = hdr_parser.CppHeaderParser()
-        
+
         for hdr in srcfiles:
             decls = parser.parse(hdr)
             for decl in decls:
@@ -191,9 +208,11 @@ class CWrapperGenerator(object):
                     self.add_func(decl)
             self.header.write("#include \"" + hdr + "\"\n")
 
-        self.source.write("extern \"C\" {\n")
-        self.source.write("using namespace cv;\n");
-        self.source.write("#include \"opencv_generated.hpp\"\n")
+    def gen(self, srcfiles, output_path):
+        self.clear()
+
+        self.readHeaders(srcfiles)
+        self.prep_src()
 
         constlist = list(self.consts.items())
         constlist.sort()
@@ -208,10 +227,8 @@ class CWrapperGenerator(object):
             self.header.write(prototype)
             self.source.write(code)
 
-        self.source.write("}")
-        self.save(output_path, "opencv_generated.hpp", self.header)
-        self.save(output_path, "opencv_generated.cpp", self.source)
-        
+        self.finalize_and_write(output_path)
+
 
 if __name__ == "__main__":
     srcfiles = hdr_parser.opencv_hdr_list
@@ -223,6 +240,3 @@ if __name__ == "__main__":
 
     generator = CWrapperGenerator()
     generator.gen(srcfiles, dstdir)
-
-            
-        
