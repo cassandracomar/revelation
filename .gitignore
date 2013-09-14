@@ -7,3 +7,7 @@ cabal-dev
 *.chs.h
 .virthualenv
 tags
+core_parsed
+__pycache__
+*.pyc
+*opencv_generated*
