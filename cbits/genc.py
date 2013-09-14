@@ -53,7 +53,7 @@ def close(s):
         return s + ");"
 
 class FuncInfo(object):
-    def __init__(self, classname, name, cname, rettype, isconstructor, args):
+    def __init__(self, classname, name, cname, rettype, isconstructor, ismethod, args):
         self.classname = classname
         self.name = name
         self.cname = cname
@@ -61,6 +61,10 @@ class FuncInfo(object):
         self.variants = []
         self.args = args
         self.rettype = rettype
+        if ismethod:
+            self_arg = ArgInfo((classname + "*","self", None, []))
+            self.args = [self_arg] + self.args
+        self.ismethod = ismethod
 
     def get_wrapper_name(self):
         name = self.name
@@ -86,10 +90,15 @@ class FuncInfo(object):
         code = "%s {\n" % (proto,)
 
         ret = "" if self.rettype == "void" else "return "
+        prefix = ""
+        postfix = self.cname
         if self.isconstructor:
-            call = "new %s(" % self.isconstructor
-        else:
-            call = "%s(" % self.cname
+            prefix = "new "
+            postfix = self.classname
+        elif self.ismethod:
+            prefix = "self -> "
+            
+        call = prefix + "%s(" % (postfix,)
 
         for arg in self.args:
             call += arg.name + ", "  
@@ -124,6 +133,8 @@ class CWrapperGenerator(object):
         cname = name
         name = re.sub(r"^cv\.", "", name)
         isconstructor = cname == bareclassname
+        ismethod = not isconstructor and bareclassname != ""
+
         cname = cname.replace(".", "::")
 
         args = map(ArgInfo, decl[3])
@@ -132,7 +143,8 @@ class CWrapperGenerator(object):
             #overloaded function...
             name += str(len(args))
 
-        self.funcs[name] = FuncInfo(bareclassname, name, cname, decl[1], isconstructor, args)
+        self.funcs[name] = FuncInfo(bareclassname, name, cname, 
+                                    decl[1], isconstructor, ismethod, args)
 
     def save(self, path, name, buf):
         f = open(path + "/" + name, "wt")
