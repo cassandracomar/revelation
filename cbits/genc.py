@@ -7,9 +7,13 @@ if sys.version_info[0] >= 3:
 else:
     from cStringIO import StringIO
 
-gen_template_simple_cfunc_decl = Template("""
-    ${ret} cv${name}()
-""")
+class ConstInfo(object):
+    def __init__(self, name, val):
+        self.cname = name.replace(".", "::")
+        self.name = name.replace(".", "_")
+        self.name = re.sub(r"cv_([a-z])([A-Z])", r"cv_\1_\2", self.name)
+        self.name = self.name.upper()
+        self.value = val
 
 class ArgInfo(object):
     def __init__(self, arg_tuple):
@@ -118,6 +122,15 @@ class CWrapperGenerator(object):
         self.code_funcs = StringIO()
         self.code_const_reg = StringIO()
 
+    def add_const(self, name, decl):
+        constinfo = ConstInfo(name, decl[1])
+
+        if constinfo.name in self.consts:
+            print("Generator error: constant %s (cname=%s) already exists" \
+                    % (constinfo.name, constinfo.cname))
+            sys.exit(-1)
+        self.consts[constinfo.name] = constinfo
+
     def add_func(self, decl):
         classname = bareclassname = ""
         name = decl[0]           # looks like cv{.classname}*.func
@@ -137,7 +150,7 @@ class CWrapperGenerator(object):
 
         cname = cname.replace(".", "::")
 
-        args = map(ArgInfo, decl[3])
+        args = list(map(ArgInfo, decl[3]))
         
         if name in self.funcs.keys():
             #overloaded function...
@@ -151,6 +164,9 @@ class CWrapperGenerator(object):
         f.write(buf.getvalue())
         f.close()
 
+    def gen_const_reg(self, constinfo):
+        self.code_const_reg.write("#define %s %s\n" % (constinfo.name, constinfo.value))
+
     def gen(self, srcfiles, output_path):
         self.clear()
         parser = hdr_parser.CppHeaderParser()
@@ -162,9 +178,14 @@ class CWrapperGenerator(object):
                 if name.startswith("struct") or name.startswith("class"):
                     pass
                 elif name.startswith("const"):
-                    pass
+                    self.add_const(name.replace("const ", "").strip(), decl)
                 else:
                     self.add_func(decl)
+
+        constlist = list(self.consts.items())
+        constlist.sort()
+        for name, const in constlist:
+            self.gen_const_reg(const)
 
         funclist = list(self.funcs.items())
         funclist.sort()
@@ -172,7 +193,8 @@ class CWrapperGenerator(object):
             code = func.gen_code()
             self.code_funcs.write(code)
 
-        self.save(output_path, "opencv_generated_funcs.h", self.code_funcs)
+        self.save(output_path, "opencv_generated_funcs.hpp", self.code_funcs)
+        self.save(output_path, "opencv_generated_consts.hpp", self.code_const_reg)
         
 
 if __name__ == "__main__":
