@@ -13,6 +13,8 @@ class ConstInfo(object):
         self.name = name.replace(".", "_")
         self.name = re.sub(r"cv_([a-z])([A-Z])", r"cv_\1_\2", self.name)
         self.name = self.name.upper()
+        if self.name.startswith("CV") and self.name[2] != "_":
+            self.name = "CV_" + self.name[2:]
         self.value = val
 
 class ArgInfo(object):
@@ -187,7 +189,7 @@ class CWrapperGenerator(object):
                     self.add_const(name.replace("const ", "").strip(), decl)
                 else:
                     self.add_func(decl)
-            self.header.write("#include <opencv2/" + os.path.basename(hdr) + ">\n")
+            self.header.write("#include \"" + hdr + "\"\n")
 
         self.source.write("extern \"C\" {\n")
         self.source.write("using namespace cv;\n");
