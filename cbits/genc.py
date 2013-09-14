@@ -85,7 +85,10 @@ class FuncInfo(object):
         ret = self.classname + "*" if self.isconstructor else self.rettype
         proto = "%s %s(" % (ret, full_fname)
         for arg in self.args:
-            proto += "%s %s, " % (arg.tp, arg.name) 
+            if arg.isarray:
+                proto += "%s* %s, " % (arg.tp, arg.name)
+            else:
+                proto += "%s %s, " % (arg.tp, arg.name) 
 
         return close(proto)
 
@@ -96,15 +99,17 @@ class FuncInfo(object):
         ret = "" if self.rettype == "void" else "return "
         prefix = ""
         postfix = self.cname
+        args = self.args
         if self.isconstructor:
             prefix = "new "
             postfix = self.classname
         elif self.ismethod:
-            prefix = "self -> "
+            prefix = "self->"
+            args = args[1:]
             
         call = prefix + "%s(" % (postfix,)
 
-        for arg in self.args:
+        for arg in args:
             call += arg.name + ", "  
         
         code += "\t" + ret + close(call)
@@ -119,8 +124,9 @@ class CWrapperGenerator(object):
     def clear(self):
         self.funcs = {}
         self.consts = {}
-        self.code_funcs = StringIO()
-        self.code_const_reg = StringIO()
+        self.source = StringIO()
+        self.header = StringIO()
+
 
     def add_const(self, name, decl):
         constinfo = ConstInfo(name, decl[1])
@@ -165,7 +171,7 @@ class CWrapperGenerator(object):
         f.close()
 
     def gen_const_reg(self, constinfo):
-        self.code_const_reg.write("#define %s %s\n" % (constinfo.name, constinfo.value))
+        self.header.write("#define %s %s\n" % (constinfo.name, constinfo.value))
 
     def gen(self, srcfiles, output_path):
         self.clear()
@@ -181,6 +187,11 @@ class CWrapperGenerator(object):
                     self.add_const(name.replace("const ", "").strip(), decl)
                 else:
                     self.add_func(decl)
+            self.header.write("#include <opencv2/" + os.path.basename(hdr) + ">\n")
+
+        self.source.write("extern \"C\" {\n")
+        self.source.write("using namespace cv;\n");
+        self.source.write("#include \"opencv_generated.hpp\"\n")
 
         constlist = list(self.consts.items())
         constlist.sort()
@@ -190,11 +201,14 @@ class CWrapperGenerator(object):
         funclist = list(self.funcs.items())
         funclist.sort()
         for name, func in funclist:
+            prototype = func.get_wrapper_prototype() + "\n"
             code = func.gen_code()
-            self.code_funcs.write(code)
+            self.header.write(prototype)
+            self.source.write(code)
 
-        self.save(output_path, "opencv_generated_funcs.hpp", self.code_funcs)
-        self.save(output_path, "opencv_generated_consts.hpp", self.code_const_reg)
+        self.source.write("}")
+        self.save(output_path, "opencv_generated.hpp", self.header)
+        self.save(output_path, "opencv_generated.cpp", self.source)
         
 
 if __name__ == "__main__":
