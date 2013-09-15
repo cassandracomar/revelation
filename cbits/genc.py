@@ -8,6 +8,27 @@ if sys.version_info[0] >= 3:
 else:
     from cStringIO import StringIO
 
+simple_args = ["bool", "int", "float", "double"]
+
+
+class TypeInfo(object):
+    def __init__(self, name):
+        self.name = name
+        self.cname = self.gen_cname(name)
+
+    def gen_cname(name):
+        cname = name
+
+        ptr_type = re.compile(r"^Ptr_(\w+)$")
+        generic_type = re.compile(r"^(\w+?)_(\w+)$")
+
+        if ptr_type.match(name):
+            cname = ptr_type.sub(r"\1*", name)
+        elif generic_type.match(name):
+            cname = generic_type.sub(r"\1<\2>", name)
+
+        return cname
+
 
 class ConstInfo(object):
     def __init__(self, name, val):
@@ -92,18 +113,18 @@ class FuncInfo(object):
     def get_wrapper_prototype(self):
         full_fname = self.get_wrapper_name()
         ret = self.classname + "*" if self.isconstructor else self.rettype
-        proto = "%s %s(" % (ret, full_fname)
+        proto = "%s %s(" % (TypeInfo.gen_cname(ret), full_fname)
         for arg in self.args:
             if arg.isarray:
-                proto += "%s* %s, " % (arg.tp, arg.name)
+                proto += "%s* %s, " % (TypeInfo.gen_cname(arg.tp), arg.name)
             else:
-                proto += "%s %s, " % (arg.tp, arg.name)
+                proto += "%s %s, " % (TypeInfo.gen_cname(arg.tp), arg.name)
 
         return close(proto)
 
     def gen_code(self):
         proto = self.get_wrapper_prototype()[:-1]
-        code = "%s {\n" % (proto,)
+        code = "extern \"C\" %s {\n" % (proto,)
 
         ret = "" if self.rettype == "void" else "return "
         prefix = ""
@@ -184,9 +205,8 @@ class CWrapperGenerator(object):
                           % (constinfo.name, constinfo.value))
 
     def prep_src(self):
-        self.source.write("extern \"C\" {\n")
-        self.source.write("using namespace cv;\n")
         self.source.write("#include \"opencv_generated.hpp\"\n")
+        self.source.write("using namespace cv;\n")
 
     def finalize_and_write(self, output_path):
         self.source.write("}")
@@ -196,6 +216,7 @@ class CWrapperGenerator(object):
     def readHeaders(self, srcfiles):
         parser = hdr_parser.CppHeaderParser()
 
+        self.header.write("#include <vector>\n")
         for hdr in srcfiles:
             decls = parser.parse(hdr)
             for decl in decls:
@@ -211,6 +232,7 @@ class CWrapperGenerator(object):
     def gen(self, srcfiles, output_path):
         self.clear()
 
+        self.header.write("#include <opencv2/opencv.hpp>\n")
         self.readHeaders(srcfiles)
         self.prep_src()
 
@@ -218,6 +240,9 @@ class CWrapperGenerator(object):
         constlist.sort()
         for name, const in constlist:
             self.gen_const_reg(const)
+
+        self.header.write("using namespace cv;\n")
+        self.header.write("using namespace std;\n")
 
         funclist = list(self.funcs.items())
         funclist.sort()
