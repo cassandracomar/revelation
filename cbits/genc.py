@@ -20,12 +20,12 @@ class TypeInfo(object):
         cname = name
 
         ptr_type = re.compile(r"^Ptr_(\w+)$")
-        generic_type = re.compile(r"^(\w+?)_(\w+)$")
+        generic_type = re.compile(r"^(\w+?)_(\w+)(\*?)$")
 
         if ptr_type.match(name):
             cname = ptr_type.sub(r"\1*", name)
-        elif generic_type.match(name):
-            cname = generic_type.sub(r"\1<\2>", name)
+        while generic_type.match(cname):
+            cname = generic_type.sub(r"\1<\2>\3", cname)
 
         return cname
 
@@ -113,7 +113,7 @@ class FuncInfo(object):
     def get_wrapper_prototype(self):
         full_fname = self.get_wrapper_name()
         ret = self.classname + "*" if self.isconstructor else self.rettype
-        proto = "%s %s(" % (TypeInfo.gen_cname(ret), full_fname)
+        proto = "extern \"C\" %s %s(" % (TypeInfo.gen_cname(ret), full_fname)
         for arg in self.args:
             if arg.isarray:
                 proto += "%s* %s, " % (TypeInfo.gen_cname(arg.tp), arg.name)
@@ -124,7 +124,7 @@ class FuncInfo(object):
 
     def gen_code(self):
         proto = self.get_wrapper_prototype()[:-1]
-        code = "extern \"C\" %s {\n" % (proto,)
+        code = "%s {\n" % (proto,)
 
         ret = "" if self.rettype == "void" else "return "
         prefix = ""
@@ -243,6 +243,7 @@ class CWrapperGenerator(object):
 
         self.header.write("using namespace cv;\n")
         self.header.write("using namespace std;\n")
+        self.header.write("using namespace flann;\n")
 
         funclist = list(self.funcs.items())
         funclist.sort()
