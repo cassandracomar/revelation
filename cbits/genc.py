@@ -8,24 +8,33 @@ if sys.version_info[0] >= 3:
 else:
     from cStringIO import StringIO
 
-simple_args = ["bool", "int", "float", "double"]
+_types = ["CvANN"]                              # literally, underscore types.
+namespaces = ["SimpleBlobDetector"]
+empty_types = ["cvflann", "flann"]
 
 
 class TypeInfo(object):
-    def __init__(self, name):
-        self.name = name
-        self.cname = self.gen_cname(name)
+    _types = list(map(lambda t: re.compile(r"" + t + r"_(\w+)"), _types))
+    ptr_type = re.compile(r"^Ptr_(\w+)$")
+    generic_type = re.compile(r"(\w+?)_((\w{2,}))")
+    nss = list(zip(namespaces, map(lambda ns: re.compile(r"" + ns + r"_(\w+)"),
+                                   namespaces)))
+    empty_types = list(map(lambda et: re.compile(r"" + et + r"_(\w+)"),
+                           empty_types))
 
     def gen_cname(name):
         cname = name
 
-        ptr_type = re.compile(r"^Ptr_(\w+)$")
-        generic_type = re.compile(r"^(\w+?)_(\w+)(\*?)$")
+        cname = TypeInfo.ptr_type.sub(r"\1*", cname)
+        for m in TypeInfo.empty_types:
+            cname = m.sub(r"\1", cname)
 
-        if ptr_type.match(name):
-            cname = ptr_type.sub(r"\1*", name)
-        while generic_type.match(cname):
-            cname = generic_type.sub(r"\1<\2>\3", cname)
+        for ns, m in TypeInfo.nss:
+            cname = m.sub(r"" + ns + r"::\1", cname)
+
+        while (TypeInfo.generic_type.search(cname) and
+               not any(t.match(cname) for t in TypeInfo._types)):
+            cname = TypeInfo.generic_type.sub(r"\1<\2>", cname)
 
         return cname
 
@@ -113,7 +122,7 @@ class FuncInfo(object):
     def get_wrapper_prototype(self):
         full_fname = self.get_wrapper_name()
         ret = self.classname + "*" if self.isconstructor else self.rettype
-        proto = "extern \"C\" %s %s(" % (TypeInfo.gen_cname(ret), full_fname)
+        proto = "%s %s(" % (TypeInfo.gen_cname(ret), full_fname)
         for arg in self.args:
             if arg.isarray:
                 proto += "%s* %s, " % (TypeInfo.gen_cname(arg.tp), arg.name)
@@ -207,6 +216,15 @@ class CWrapperGenerator(object):
     def prep_src(self):
         self.source.write("#include \"opencv_generated.hpp\"\n")
         self.source.write("using namespace cv;\n")
+        self.source.write("using namespace std;\n")
+        self.source.write("using namespace flann;\n")
+        self.source.write("extern \"C\" {\n")
+
+    def prep_header(self):
+        self.header.write("using namespace cv;\n")
+        self.header.write("using namespace std;\n")
+        self.header.write("using namespace flann;\n")
+        self.header.write("extern \"C\" {\n")
 
     def finalize_and_write(self, output_path):
         self.source.write("}")
@@ -241,10 +259,7 @@ class CWrapperGenerator(object):
         for name, const in constlist:
             self.gen_const_reg(const)
 
-        self.header.write("using namespace cv;\n")
-        self.header.write("using namespace std;\n")
-        self.header.write("using namespace flann;\n")
-
+        self.prep_header()
         funclist = list(self.funcs.items())
         funclist.sort()
         for name, func in funclist:
@@ -252,6 +267,9 @@ class CWrapperGenerator(object):
             code = func.gen_code()
             self.header.write(prototype)
             self.source.write(code)
+
+        self.header.write("}")
+        self.source.write("}")
 
         self.finalize_and_write(output_path)
 
