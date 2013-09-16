@@ -8,9 +8,12 @@ if sys.version_info[0] >= 3:
 else:
     from cStringIO import StringIO
 
-_types = ["CvANN"]                              # literally, underscore types.
+_types = ["CvANN", "flann"]                 # literally, underscore types.
 namespaces = ["SimpleBlobDetector"]
 empty_types = ["cvflann", "flann"]
+
+exceptions = {"distance_t": "flann_distance_t",
+              "algorithm_t": "flann_algorithm_t"}
 
 
 class TypeInfo(object):
@@ -36,6 +39,11 @@ class TypeInfo(object):
                not any(t.match(cname) for t in TypeInfo._types)):
             cname = TypeInfo.generic_type.sub(r"\1<\2>", cname)
 
+        for e in exceptions:
+            cname = re.sub(e, exceptions[e], cname)
+
+        # fix any type1<type2<type3>> issues
+        cname = re.sub(r"(\w+)<(\w+)<(\w+)>>", r"\1<\2<\3> >", cname)
         return cname
 
 
@@ -115,6 +123,8 @@ class FuncInfo(object):
             classname = self.classname + "_"
             if "[" in name:
                 name = "getelem"
+            elif "(" in name:
+                name = "call"
         else:
             classname = ""
         return "cv_" + classname + name
@@ -218,15 +228,19 @@ class CWrapperGenerator(object):
         self.source.write("using namespace cv;\n")
         self.source.write("using namespace std;\n")
         self.source.write("using namespace flann;\n")
+        self.source.write("using namespace cvflann;\n")
         self.source.write("extern \"C\" {\n")
 
     def prep_header(self):
         self.header.write("using namespace cv;\n")
         self.header.write("using namespace std;\n")
         self.header.write("using namespace flann;\n")
+        self.header.write("using namespace cvflann;\n")
+        self.header.write("typedef SimpleBlobDetector::Params Params;\n")
         self.header.write("extern \"C\" {\n")
 
     def finalize_and_write(self, output_path):
+        self.header.write("}")
         self.source.write("}")
         self.save(output_path, "opencv_generated.hpp", self.header)
         self.save(output_path, "opencv_generated.cpp", self.source)
@@ -267,9 +281,6 @@ class CWrapperGenerator(object):
             code = func.gen_code()
             self.header.write(prototype)
             self.source.write(code)
-
-        self.header.write("}")
-        self.source.write("}")
 
         self.finalize_and_write(output_path)
 
