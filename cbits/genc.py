@@ -28,7 +28,7 @@ class TypeInfo(object):
     def gen_cname(name):
         cname = name
 
-        cname = TypeInfo.ptr_type.sub(r"\1*", cname)
+#        cname = TypeInfo.ptr_type.sub(r"\1*", cname)
         for m in TypeInfo.empty_types:
             cname = m.sub(r"\1", cname)
 
