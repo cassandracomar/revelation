@@ -1,16 +1,18 @@
 import Distribution.Simple
 import Distribution.Simple.Setup
 import Distribution.Simple.Utils (rawSystemExit)
-import Distribution.PackageDescription
 
 main :: IO ()
-main = defaultMainWithHooks simpleUserHooks { preConf = \a b -> generateCPP a b >> preConf simpleUserHooks a b 
-                                            , postClean = \a b c d -> cleanCPP a b c >> postClean simpleUserHooks a b c d }
-                        
-generateCPP :: Args -> ConfigFlags -> IO ()
-generateCPP _ flags = rawSystemExit (fromFlag $ configVerbosity flags) "env"
-                        ["python", "cbits/genc.py", "cbits/"]
+main = defaultMainWithHooks simpleUserHooks { preConf = \a b -> generateCPP b >> preConf simpleUserHooks a b
+                                            -- The following hook prevents cabal from checking to see if generated cpp header and
+                                            -- source files actually compile before completing configuration. 
+                                            , postConf = postConf emptyUserHooks
+                                            , postClean = \a b c d -> cleanCPP b >> postClean simpleUserHooks a b c d }
 
-cleanCPP :: Args -> CleanFlags -> PackageDescription -> IO () 
-cleanCPP _ flags _ = rawSystemExit (fromFlag $ cleanVerbosity flags) "env"
-                          ["rm", "-f", "cbits/opencv_generated.cpp", "cbits/opencv_generated.hpp"]
+generateCPP :: ConfigFlags -> IO ()
+generateCPP flags = rawSystemExit (fromFlag $ configVerbosity flags) "python"
+                        ["cbits/genc.py", "cbits/"]
+
+cleanCPP :: CleanFlags -> IO ()
+cleanCPP flags = rawSystemExit (fromFlag $ cleanVerbosity flags) "rm"
+                          ["-f", "cbits/opencv_generated.cpp", "cbits/opencv_generated.hpp"]

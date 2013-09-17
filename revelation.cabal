@@ -2,15 +2,12 @@
 name:                       revelation
 version:                    0.1.0.0
 synopsis:                   OpenCV bindings that provide complete access to OpenCV >= 2.0
--- description:         
 license:                    BSD3
 license-file:               LICENSE
 author:                     Arjun Comar
 maintainer:                 nrujac@gmail.com
--- copyright:           
 category:                   AI, Graphics, Machine Vision
-build-type:                 Simple
--- extra-source-files:  
+build-type:                 Custom
 cabal-version:              >=1.10
 
 library
@@ -18,7 +15,6 @@ library
                           , /usr/local/include/
     includes:               cbits/opencv_generated.hpp
     c-sources:              cbits/opencv_generated.cpp
-    cc-options:             -x cpp -U__OPENCV_BUILD -D__cplusplus
     ghc-options:            -pgml /usr/bin/g++
     exposed-modules:        Main
     extra-libraries:        opencv_core
@@ -31,31 +27,7 @@ library
                           , opencv_ml
                           , opencv_objdetect
                           , opencv_video
-    build-depends:          base >=4.6 && <4.7
-                          , containers >= 0.2
-                          , bindings-DSL >= 1.0.14 && <= 1.1
-                          , Cabal >= 1.16
-    hs-source-dirs:         Revelation
-    default-language:       Haskell2010
-
-executable test
-    main-is:                Main.hs
-    include-dirs:           cbits/
-                          , /usr/local/include
-    includes:               cbits/opencv_generated.hpp
-    c-sources:              cbits/opencv_generated.cpp
-    cc-options:             -x cpp -U__OPENCV_BUILD -D__cplusplus
-    ghc-options:            -pgml /usr/bin/g++
-    extra-libraries:        opencv_core
-                          , opencv_calib3d
-                          , opencv_features2d
-                          , opencv_flann
-                          , opencv_highgui
-                          , opencv_imgproc
-                          , opencv_legacy
-                          , opencv_ml
-                          , opencv_objdetect
-                          , opencv_video
+                          , opencv_contrib
     build-depends:          base >=4.6 && <4.7
                           , containers >= 0.2
                           , bindings-DSL >= 1.0.14 && <= 1.1
