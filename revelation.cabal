@@ -15,19 +15,9 @@ library
                           , /usr/local/include/
     includes:               cbits/opencv_generated.hpp
     c-sources:              cbits/opencv_generated.cpp
-    ghc-options:            -pgml /usr/bin/g++
+    ghc-options:            -pgml g++
     exposed-modules:        Main
-    extra-libraries:        opencv_core
-                          , opencv_calib3d
-                          , opencv_features2d
-                          , opencv_flann
-                          , opencv_highgui
-                          , opencv_imgproc
-                          , opencv_legacy
-                          , opencv_ml
-                          , opencv_objdetect
-                          , opencv_video
-                          , opencv_contrib
+    pkgconfig-depends:      opencv
     build-depends:          base >=4.6 && <4.7
                           , containers >= 0.2
                           , bindings-DSL >= 1.0.14 && <= 1.1
