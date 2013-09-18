@@ -5,17 +5,17 @@ import os, sys, re, string
 
 # the list only for debugging. The real list, used in the real OpenCV build, is specified in CMakeLists.txt
 opencv_hdr_list = [
-"/usr/local/include/opencv2/core.hpp",
-"/usr/local/include/opencv2/flann/miniflann.hpp",
-"/usr/local/include/opencv2/ml.hpp",
-"/usr/local/include/opencv2/imgproc.hpp",
-"/usr/local/include/opencv2/calib3d.hpp",
-"/usr/local/include/opencv2/features2d.hpp",
-"/usr/local/include/opencv2/video/tracking.hpp",
-"/usr/local/include/opencv2/video/background_segm.hpp",
-"/usr/local/include/opencv2/objdetect.hpp",
-"/usr/local/include/opencv2/contrib.hpp",
-"/usr/local/include/opencv2/highgui.hpp"
+"opencv2/core.hpp",
+"opencv2/flann/miniflann.hpp",
+"opencv2/ml.hpp",
+"opencv2/imgproc.hpp",
+"opencv2/calib3d.hpp",
+"opencv2/features2d.hpp",
+"opencv2/video/tracking.hpp",
+"opencv2/video/background_segm.hpp",
+"opencv2/objdetect.hpp",
+"opencv2/contrib.hpp",
+"opencv2/highgui.hpp"
 ]
 
 """

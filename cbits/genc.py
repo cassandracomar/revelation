@@ -8,41 +8,51 @@ if sys.version_info[0] >= 3:
 else:
     from cStringIO import StringIO
 
-_types = ["CvANN", "flann"]                 # literally, underscore types.
+_types = ["CvANN", "flann", "c"]                 # literally, underscore types.
 namespaces = ["SimpleBlobDetector"]
 empty_types = ["cvflann", "flann"]
 
 exceptions = {"distance_t": "flann_distance_t",
-              "algorithm_t": "flann_algorithm_t"}
+              "algorithm_t": "flann_algorithm_t",
+              # The following was taken care of previously by _types,
+              # But for some reason, it doesn't work with the typedefs.
+              r"CvANN<(\w+?)<(\w+)>>": r"CvANN_\1_\2"}
 
 
 class TypeInfo(object):
     _types = list(map(lambda t: re.compile(r"" + t + r"_(\w+)"), _types))
-    ptr_type = re.compile(r"^Ptr_(\w+)$")
     generic_type = re.compile(r"(\w+?)_((\w{2,}))")
     nss = list(zip(namespaces, map(lambda ns: re.compile(r"" + ns + r"_(\w+)"),
                                    namespaces)))
     empty_types = list(map(lambda et: re.compile(r"" + et + r"_(\w+)"),
                            empty_types))
 
+    def __init__(self, name, decl):
+        self.name = name
+        self.cname = TypeInfo.gen_cname(name)
+        self.fields = {}
+
+        if decl:
+            for p in decl[3]:
+                self.fields[p[1]] = TypeInfo.gen_cname(p[0])
+
     def gen_cname(name):
         cname = name
-
-#        cname = TypeInfo.ptr_type.sub(r"\1*", cname)
+        # make basic substitutions to get rid of basic types
+        # and correct namespaces
         for m in TypeInfo.empty_types:
             cname = m.sub(r"\1", cname)
-
         for ns, m in TypeInfo.nss:
             cname = m.sub(r"" + ns + r"::\1", cname)
 
+        # fix templated types
         while (TypeInfo.generic_type.search(cname) and
                not any(t.match(cname) for t in TypeInfo._types)):
             cname = TypeInfo.generic_type.sub(r"\1<\2>", cname)
 
+        # fix any exceptional type issues and type1<type2<type3>> issues
         for e in exceptions:
             cname = re.sub(e, exceptions[e], cname)
-
-        # fix any type1<type2<type3>> issues
         cname = re.sub(r"(\w+)<(\w+)<(\w+)>>", r"\1<\2<\3> >", cname)
         return cname
 
@@ -56,6 +66,7 @@ class ConstInfo(object):
         if self.name.startswith("CV") and self.name[2] != "_":
             self.name = "CV_" + self.name[2:]
         self.value = val
+        self.isfractional = re.match(r"^d+?\.\d+?$", self.value)
 
 
 class ArgInfo(object):
@@ -132,12 +143,12 @@ class FuncInfo(object):
     def get_wrapper_prototype(self):
         full_fname = self.get_wrapper_name()
         ret = self.classname + "*" if self.isconstructor else self.rettype
-        proto = "%s %s(" % (TypeInfo.gen_cname(ret), full_fname)
+        proto = "%s %s(" % (ret, full_fname)
         for arg in self.args:
             if arg.isarray:
-                proto += "%s* %s, " % (TypeInfo.gen_cname(arg.tp), arg.name)
+                proto += "%s* %s, " % (arg.tp, arg.name)
             else:
-                proto += "%s %s, " % (TypeInfo.gen_cname(arg.tp), arg.name)
+                proto += "%s %s, " % (arg.tp, arg.name)
 
         return close(proto)
 
@@ -174,6 +185,7 @@ class CWrapperGenerator(object):
     def clear(self):
         self.funcs = {}
         self.consts = {}
+        self.types = {}
         self.source = StringIO()
         self.header = StringIO()
 
@@ -206,6 +218,8 @@ class CWrapperGenerator(object):
         cname = cname.replace(".", "::")
 
         args = list(map(ArgInfo, decl[3]))
+        for a in args:
+            self.add_type(a.tp, None)
 
         if name in self.funcs.keys():
             #overloaded function...
@@ -213,6 +227,13 @@ class CWrapperGenerator(object):
 
         self.funcs[name] = FuncInfo(bareclassname, name, cname,
                                     decl[1], isconstructor, ismethod, args)
+        self.add_type(decl[1], None)
+
+    def add_type(self, name, decl):
+        typeinfo = TypeInfo(name, decl)
+
+        if not typeinfo.name in self.types:
+            self.types[typeinfo.name] = typeinfo
 
     def save(self, path, name, buf):
         f = open(path + "/" + name, "wt")
@@ -222,6 +243,10 @@ class CWrapperGenerator(object):
     def gen_const_reg(self, constinfo):
         self.header.write("#define %s %s\n"
                           % (constinfo.name, constinfo.value))
+
+    def gen_typedef(self, typeinfo):
+        self.header.write("typedef %s %s;\n"
+                          % (typeinfo.cname, typeinfo.name))
 
     def prep_src(self):
         self.source.write("#include \"opencv_generated.hpp\"\n")
@@ -236,8 +261,8 @@ class CWrapperGenerator(object):
         self.header.write("using namespace std;\n")
         self.header.write("using namespace flann;\n")
         self.header.write("using namespace cvflann;\n")
-        self.header.write("typedef SimpleBlobDetector::Params Params;\n")
         self.header.write("extern \"C\" {\n")
+        self.header.write("typedef SimpleBlobDetector::Params Params;\n")
 
     def finalize_and_write(self, output_path):
         self.header.write("}")
@@ -245,35 +270,43 @@ class CWrapperGenerator(object):
         self.save(output_path, "opencv_generated.hpp", self.header)
         self.save(output_path, "opencv_generated.cpp", self.source)
 
-    def readHeaders(self, srcfiles):
+    def readHeaders(self, header_dir, srcfiles):
         parser = hdr_parser.CppHeaderParser()
+        if not header_dir.endswith('/'):
+            header_dir += '/'
 
         self.header.write("#include <vector>\n")
         for hdr in srcfiles:
-            decls = parser.parse(hdr)
+            decls = parser.parse(header_dir + hdr)
             for decl in decls:
                 name = decl[0]
                 if name.startswith("struct") or name.startswith("class"):
-                    pass
+                    self.add_type(name.replace("class ", "").strip(), decl)
                 elif name.startswith("const"):
                     self.add_const(name.replace("const ", "").strip(), decl)
                 else:
                     self.add_func(decl)
-            self.header.write("#include \"" + hdr + "\"\n")
+            self.header.write("#include <" + hdr + ">\n")
 
-    def gen(self, srcfiles, output_path):
+    def gen(self, header_dir, srcfiles, output_path):
         self.clear()
 
         self.header.write("#include <opencv2/opencv.hpp>\n")
-        self.readHeaders(srcfiles)
+        self.readHeaders(header_dir, srcfiles)
+        self.prep_header()
         self.prep_src()
+
+        typelist = list(self.types.items())
+        typelist.sort()
+        for name, typeinfo in typelist:
+            if typeinfo.name != typeinfo.cname:
+                self.gen_typedef(typeinfo)
 
         constlist = list(self.consts.items())
         constlist.sort()
         for name, const in constlist:
             self.gen_const_reg(const)
 
-        self.prep_header()
         funclist = list(self.funcs.items())
         funclist.sort()
         for name, func in funclist:
@@ -286,12 +319,15 @@ class CWrapperGenerator(object):
 
 
 if __name__ == "__main__":
+    header_dir = "/usr/local/include"
     srcfiles = hdr_parser.opencv_hdr_list
     dstdir = "."
     if len(sys.argv) > 1:
         dstdir = sys.argv[1]
     if len(sys.argv) > 2:
-        srcfiles = sys.argv[2:]
+        header_dir = sys.argv[2]
+    if len(sys.argv) > 3:
+        srcfiles = sys.argv[3:]
 
     generator = CWrapperGenerator()
-    generator.gen(srcfiles, dstdir)
+    generator.gen(header_dir, srcfiles, dstdir)
