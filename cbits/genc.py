@@ -34,7 +34,7 @@ class TypeInfo(object):
 
         if decl:
             for p in decl[3]:
-                self.fields[p[1]] = TypeInfo.gen_cname(p[0])
+                self.fields[p[1]] = p[0]
 
     def gen_cname(name):
         cname = name
@@ -250,10 +250,6 @@ class CWrapperGenerator(object):
 
     def prep_src(self):
         self.source.write("#include \"opencv_generated.hpp\"\n")
-        self.source.write("using namespace cv;\n")
-        self.source.write("using namespace std;\n")
-        self.source.write("using namespace flann;\n")
-        self.source.write("using namespace cvflann;\n")
         self.source.write("extern \"C\" {\n")
 
     def prep_header(self):
@@ -291,6 +287,8 @@ class CWrapperGenerator(object):
     def gen(self, header_dir, srcfiles, output_path):
         self.clear()
 
+        if not srcfiles:
+            srcfiles = hdr_parser.opencv_hdr_list
         self.header.write("#include <opencv2/opencv.hpp>\n")
         self.readHeaders(header_dir, srcfiles)
         self.prep_header()
@@ -320,7 +318,7 @@ class CWrapperGenerator(object):
 
 if __name__ == "__main__":
     header_dir = "/usr/local/include"
-    srcfiles = hdr_parser.opencv_hdr_list
+    srcfiles = None
     dstdir = "."
     if len(sys.argv) > 1:
         dstdir = sys.argv[1]
