@@ -18,25 +18,34 @@ simple_types = {"int": "CInt",
                 "size_t": "CSize",
                 "c_string": "CString",
                 "void": "()"}
-
 exceptions = {"flann_Index": "Index",
-              "SimpleBlobDetector_Params": "Params"}
+              "SimpleBlobDetector_Params": "Params",
+              "cvflann_flann_distance_t": "flann_distance_t",
+              "cvflann_flann_algorithm_t": "flann_algorithm_t",
+              "flann_IndexParams": "IndexParams",
+              "flann_SearchParams": "SearchParams"}
 
 
 def toHSType(t):
     if t in simple_types:
         return simple_types[t]
-
     # check if we have a pointer to a simple_type
-    if t[:-1] in simple_types:
+    elif t[:-1] in simple_types:
         return "Ptr " + simple_types[t[:-1]]
+
+    t = re.sub(r"Ptr_(\w+)", r"\1*", t)
 
     if t in exceptions:
         t = exceptions[t]
+    elif t[:-1] in exceptions:
+        t = exceptions[t[:-1]]
 
+    ptr = t.endswith("*")
     t = "<" + t + ">"
-    t = re.sub(r"(.+)\*(>)", r"Ptr \1>", t)
-    t = re.sub(r"(.+)", r"Ptr (\1)", t)
+    if ptr:
+        t = re.sub(r"<(\w+)\*>", r"Ptr <\1>", t)
+    else:
+        t = re.sub(r"(.+)", r"Ptr \1", t)
 
     return t
 
@@ -62,6 +71,7 @@ class HSCWrapperGen(object):
         name = name.replace("*", "")
         name = name.replace("struct ", "")
         name = name.replace(".", "_")
+        name = name.replace("Ptr_", "")
 
         if name in exceptions:
             name = exceptions[name]
@@ -109,12 +119,20 @@ class HSCWrapperGen(object):
         self.prep_hsc()
 
         # Generate the code for consts, types, and functions
-        for c in cgen.consts:
-            self.gen_const(cgen.consts[c])
-        for t in cgen.types:
-                self.gen_type(cgen.types[t])
-        for f in cgen.funcs:
-            self.gen_func(cgen.funcs[f])
+        constlist = list(cgen.consts.items())
+        constlist.sort()
+        for n, c in constlist:
+            self.gen_const(c)
+
+        typelist = list(cgen.types.items())
+        typelist.sort()
+        for n, t in typelist:
+                self.gen_type(t)
+
+        funclist = list(cgen.funcs.items())
+        funclist.sort()
+        for n, f in funclist:
+            self.gen_func(f)
 
         if not dstdir.endswith("/"):
             dstdir += "/"

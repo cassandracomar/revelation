@@ -29,10 +29,11 @@ class TypeInfo(object):
                                    namespaces)))
     empty_types = list(map(lambda et: re.compile(r"" + et + r"_(\w+)"),
                            empty_types))
+    ptr = re.compile(r"Ptr_(\w+)")
 
     def __init__(self, name, decl):
-        self.name = name
-        self.cname = TypeInfo.gen_cname(name)
+        self.name = name.replace("Ptr_", "")
+        self.cname = TypeInfo.gen_cname(self.name)
         self.fields = {}
 
         if decl:
@@ -47,6 +48,9 @@ class TypeInfo(object):
             cname = m.sub(r"\1", cname)
         for ns, m in TypeInfo.nss:
             cname = m.sub(r"" + ns + r"::\1", cname)
+
+        if TypeInfo.ptr.match(cname):
+            TypeInfo.ptr.sub(r"\1*", cname)
 
         # fix templated types
         while (TypeInfo.generic_type.search(cname) and
@@ -74,7 +78,7 @@ class ConstInfo(object):
 
 class ArgInfo(object):
     def __init__(self, arg_tuple):
-        self.tp = arg_tuple[0]
+        self.tp = TypeInfo.ptr.sub(r"\1*", arg_tuple[0])
         self.name = arg_tuple[1]
         self.defval = arg_tuple[2]
         self.isarray = False
@@ -137,16 +141,25 @@ class FuncInfo(object):
 
     def get_wrapper_prototype(self):
         full_fname = self.get_wrapper_name()
-        s = "" if self.rettype in simple_types else "*"
-        ret = self.classname + "*" if self.isconstructor else self.rettype + s
+
+        ptr_template = self.rettype.startswith("Ptr_")
+        ptr = ptr_template or self.rettype.endswith("*")
+        s = "" if self.rettype in simple_types or ptr else "*"
+        if ptr_template:
+            rettype = TypeInfo.ptr.sub(r"\1*", self.rettype)
+        else:
+            rettype = self.rettype + s
+        ret = self.classname + "*" if self.isconstructor else rettype
+
         proto = "%s %s(" % (ret, full_fname)
         for arg in self.args:
-            if arg.isarray:
-                proto += "%s* %s, " % (arg.tp, arg.name)
-            elif not arg.tp in simple_types and arg.name != "self":
-                proto += "%s* %s, " % (arg.tp, arg.name)
+            t = arg.tp
+            if (arg.isarray or not t in simple_types and arg.name != "self"):
+                format_s = "%s* %s, "
             else:
-                proto += "%s %s, " % (arg.tp, arg.name)
+                format_s = "%s %s, "
+
+            proto += format_s % (t, arg.name)
 
         if proto.endswith("("):
             return proto + ");"
@@ -160,12 +173,12 @@ class FuncInfo(object):
         void = self.rettype == "void"
         simple = self.rettype in simple_types
         pointer = self.rettype.endswith("*")
-        if not (void or simple or pointer or self.isconstructor):
-            call = "new " + self.rettype + "(" + call + "));"
-        else:
-            call += ");"
+        if self.rettype.startswith("Ptr_"):
+            call = "&*" + call
+        elif not (void or simple or pointer or self.isconstructor):
+            call = "new " + self.rettype + "(" + call + ")"
 
-        return call
+        return call + ");"
 
     def gen_code(self):
         proto = self.get_wrapper_prototype()[:-1]
@@ -264,7 +277,8 @@ class CWrapperGenerator(object):
 
     def gen_typedef(self, typeinfo):
         self.header.write("typedef %s %s;\n"
-                          % (typeinfo.cname, typeinfo.name))
+                          % (typeinfo.cname.replace("*", ""),
+                             typeinfo.name.replace("*", "")))
 
     def prep_src(self):
         self.source.write("#include \"opencv_generated.hpp\"\n")
