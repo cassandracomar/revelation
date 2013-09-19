@@ -192,10 +192,11 @@ class CWrapperGenerator(object):
     def add_const(self, name, decl):
         constinfo = ConstInfo(name, decl[1])
 
-        if constinfo.name in self.consts:
-            print("Generator error: constant %s (cname=%s) already exists"
-                  % (constinfo.name, constinfo.cname))
-            sys.exit(-1)
+        i = 0
+        while constinfo.name + str(i) in self.consts:
+            i += 1
+
+        constinfo.name += str(i)
         self.consts[constinfo.name] = constinfo
 
     def add_func(self, decl):
@@ -242,7 +243,7 @@ class CWrapperGenerator(object):
 
     def gen_const_reg(self, constinfo):
         self.header.write("#define %s %s\n"
-                          % (constinfo.name, constinfo.value))
+                          % (constinfo.name, constinfo.cname))
 
     def gen_typedef(self, typeinfo):
         self.header.write("typedef %s %s;\n"
@@ -250,6 +251,10 @@ class CWrapperGenerator(object):
 
     def prep_src(self):
         self.source.write("#include \"opencv_generated.hpp\"\n")
+        self.source.write("using namespace cv;\n")
+        self.source.write("using namespace std;\n")
+        self.source.write("using namespace flann;\n")
+        self.source.write("using namespace cvflann;\n")
         self.source.write("extern \"C\" {\n")
 
     def prep_header(self):
@@ -258,6 +263,7 @@ class CWrapperGenerator(object):
         self.header.write("using namespace flann;\n")
         self.header.write("using namespace cvflann;\n")
         self.header.write("extern \"C\" {\n")
+        self.header.write("typedef char* c_string;\n")
         self.header.write("typedef SimpleBlobDetector::Params Params;\n")
 
     def finalize_and_write(self, output_path):
