@@ -36,6 +36,7 @@ def toHSType(t):
 
     t = "<" + t + ">"
     t = re.sub(r"(.+)\*(>)", r"Ptr \1>", t)
+    t = re.sub(r"(.+)", r"Ptr (\1)", t)
 
     return t
 

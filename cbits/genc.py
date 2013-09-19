@@ -18,6 +18,9 @@ exceptions = {"distance_t": "flann_distance_t",
               # But for some reason, it doesn't work with the typedefs.
               r"CvANN<(\w+?)<(\w+)>>": r"CvANN_\1_\2"}
 
+simple_types = ["int", "int64", "bool", "float", "double",
+                "char*", "char", "size_t", "c_string", "void"]
+
 
 class TypeInfo(object):
     _types = list(map(lambda t: re.compile(r"" + t + r"_(\w+)"), _types))
@@ -105,14 +108,6 @@ class ArgInfo(object):
         return "ArgInfo(\"%s\", %d)" % (self.name, self.outputarg)
 
 
-def close(s):
-    if s[-1] != "(":
-        # strip trailing comma and space, and close the prototype
-        return s[:-2] + ");"
-    else:
-        return s + ");"
-
-
 class FuncInfo(object):
     def __init__(self, classname, name, cname,
                  rettype, isconstructor, ismethod, args):
@@ -142,15 +137,35 @@ class FuncInfo(object):
 
     def get_wrapper_prototype(self):
         full_fname = self.get_wrapper_name()
-        ret = self.classname + "*" if self.isconstructor else self.rettype
+        s = "" if self.rettype in simple_types else "*"
+        ret = self.classname + "*" if self.isconstructor else self.rettype + s
         proto = "%s %s(" % (ret, full_fname)
         for arg in self.args:
             if arg.isarray:
                 proto += "%s* %s, " % (arg.tp, arg.name)
+            elif not arg.tp in simple_types and arg.name != "self":
+                proto += "%s* %s, " % (arg.tp, arg.name)
             else:
                 proto += "%s %s, " % (arg.tp, arg.name)
 
-        return close(proto)
+        if proto.endswith("("):
+            return proto + ");"
+        else:
+            return proto[:-2] + ");"
+
+    def fix_call(self, call):
+        if not call.endswith("("):
+            call = call[:-2]
+
+        void = self.rettype == "void"
+        simple = self.rettype in simple_types
+        pointer = self.rettype.endswith("*")
+        if not (void or simple or pointer or self.isconstructor):
+            call = "new " + self.rettype + "(" + call + "));"
+        else:
+            call += ");"
+
+        return call
 
     def gen_code(self):
         proto = self.get_wrapper_prototype()[:-1]
@@ -170,9 +185,11 @@ class FuncInfo(object):
         call = prefix + "%s(" % (postfix,)
 
         for arg in args:
-            call += arg.name + ", "
+            s = "" if arg.tp in simple_types else "*"
+            call += s + arg.name + ", "
 
-        code += "\t" + ret + close(call)
+        call = self.fix_call(call)
+        code += "\t" + ret + call
         code += "\n}\n"
 
         return code

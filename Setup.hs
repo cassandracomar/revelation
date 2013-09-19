@@ -5,9 +5,9 @@ import Distribution.Simple.Utils (rawSystemExit)
 main :: IO ()
 main = defaultMainWithHooks simpleUserHooks { preConf = \a b -> generateBindings b >> preConf simpleUserHooks a b
                                             -- The following hook prevents cabal from checking to see if generated cpp header and
-                                            -- source files actually compile before completing configuration. 
+                                            -- source files actually compile before completing configuration.
                                             , postConf = postConf emptyUserHooks
-                                            , postClean = \a b c d -> cleanBindings b >> postClean simpleUserHooks a b c d }
+                                            , postClean = \a b c d -> cleanBindings b >> postClean simpleUserHooks a b c d  }
 
 generateBindings :: ConfigFlags -> IO ()
 generateBindings flags = rawSystemExit (fromFlag $ configVerbosity flags) "python"
@@ -16,3 +16,4 @@ generateBindings flags = rawSystemExit (fromFlag $ configVerbosity flags) "pytho
 cleanBindings :: CleanFlags -> IO ()
 cleanBindings flags = rawSystemExit (fromFlag $ cleanVerbosity flags) "rm"
                           ["-f", "cbits/opencv_generated.cpp", "cbits/opencv_generated.hpp", "Revelation/Bindings/RawTypes.hsc", "Revelation/Bindings/RawConsts.hsc", "Revelation/Bindings/RawFuncs.hsc"]
+
