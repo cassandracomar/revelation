@@ -99,16 +99,16 @@ class HSCWrapperGen(object):
             hsc.write("#include <bindings.dsl.h>\n")
             hsc.write("#include <opencv_generated.hpp>\n")
 
-        self.hsc_types.write("module Bindings.RawTypes where\n")
-        self.hsc_consts.write("module Bindings.RawConsts where\n")
-        self.hsc_funcs.write("module Bindings.RawFuncs where\n")
+        self.hsc_types.write("module Revelation.Bindings.RawTypes where\n")
+        self.hsc_consts.write("module Revelation.Bindings.RawConsts where\n")
+        self.hsc_funcs.write("module Revelation.Bindings.RawFuncs where\n")
 
         for hsc in [self.hsc_types, self.hsc_consts, self.hsc_funcs]:
             hsc.write("#strict_import\n")
             hsc.write("import Foreign.C\n")
             hsc.write("import Foreign.C.Types\n")
 
-        self.hsc_funcs.write("import Bindings.RawTypes\n")
+        self.hsc_funcs.write("import Revelation.Bindings.RawTypes\n")
 
     def save(self, dstdir, outfile, buf):
         f = open(dstdir + outfile + ".hsc", "wt")

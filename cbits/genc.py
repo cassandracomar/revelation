@@ -137,6 +137,9 @@ class FuncInfo(object):
                 name = "call"
         else:
             classname = ""
+
+        if self.isconstructor:
+            return "cv_create_" + classname
         return "cv_" + classname + name
 
     def get_wrapper_prototype(self):
@@ -154,7 +157,9 @@ class FuncInfo(object):
         proto = "%s %s(" % (ret, full_fname)
         for arg in self.args:
             t = arg.tp
-            if (arg.isarray or not t in simple_types and arg.name != "self"):
+            simple = t in simple_types
+            pointer = t.endswith("*")
+            if not simple and not pointer and arg.name != self or arg.isarray:
                 format_s = "%s* %s, "
             else:
                 format_s = "%s %s, "
@@ -173,6 +178,8 @@ class FuncInfo(object):
         void = self.rettype == "void"
         simple = self.rettype in simple_types
         pointer = self.rettype.endswith("*")
+        # The following looks weird, but it's to deref the smart pointer
+        # and return the simple pointer.
         if self.rettype.startswith("Ptr_"):
             call = "&*" + call
         elif not (void or simple or pointer or self.isconstructor):
@@ -198,7 +205,7 @@ class FuncInfo(object):
         call = prefix + "%s(" % (postfix,)
 
         for arg in args:
-            s = "" if arg.tp in simple_types else "*"
+            s = "" if arg.tp in simple_types or arg.tp.endswith("*") else "*"
             call += s + arg.name + ", "
 
         call = self.fix_call(call)
