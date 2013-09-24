@@ -139,8 +139,9 @@ class FuncInfo(object):
             classname = ""
 
         if self.isconstructor:
-            return "cv_create_" + classname
-        return "cv_" + classname + name
+            return "cv_create_" + name
+        else:
+            return "cv_" + classname + name
 
     def get_wrapper_prototype(self):
         full_fname = self.get_wrapper_name()
