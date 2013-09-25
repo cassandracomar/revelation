@@ -5,10 +5,8 @@ cabal-dev
 *.hi
 *.chi
 *.chs.h
-*Raw*.hsc
 .virthualenv
 tags
 core_parsed
 __pycache__
 *.pyc
-*opencv_generated*

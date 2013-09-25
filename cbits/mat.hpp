@@ -1,19 +1,23 @@
 /*
  * =====================================================================================
  *
- *       Filename:  test.hpp
+ *       Filename:  mat.hpp
  *
- *    Description:  Test header to see if a extern-c'd c++ header can be included in haskell.
+ *    Description:  Wrappers for the OpenCV Matrix class
  *
  *        Version:  1.0
- *        Created:  09/13/13 14:39:18
+ *        Created:  09/24/13 20:01:07
  *       Revision:  none
  *       Compiler:  g++
  *
- *         Author:  YOUR NAME (), 
- *   Organization:  
+ *         Author:  Arjun Comar
  *
  * =====================================================================================
  */
 
-int fib(int i);
+#include <opencv_generated.hpp>
+
+extern "C" {
+Mat* cv_create_Mat();
+}
+

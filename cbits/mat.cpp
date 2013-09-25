@@ -1,12 +1,12 @@
 /*
  * =====================================================================================
  *
- *       Filename:  test.cpp
+ *       Filename:  mat.cpp
  *
  *    Description:  
  *
  *        Version:  1.0
- *        Created:  09/13/13 14:41:18
+ *        Created:  09/24/13 20:12:17
  *       Revision:  none
  *       Compiler:  gcc
  *
@@ -15,14 +15,13 @@
  *
  * =====================================================================================
  */
+#include <opencv_generated.hpp>
+#include <mat.hpp>
+
 extern "C" {
-#include <stdlib.h>
-#include "test.hpp"
+Mat* cv_create_Mat() {
 
-int fib(int i) {
-
-    return i <= 1 ? i : fib(i - 1) + fib (i - 2);
+    return new Mat();
 
 }
-
 }

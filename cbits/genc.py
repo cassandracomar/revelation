@@ -297,6 +297,8 @@ class CWrapperGenerator(object):
         self.source.write("extern \"C\" {\n")
 
     def prep_header(self):
+        self.header.write("#ifndef __OPENCV_GENERATED_HPP\n")
+        self.header.write("#define __OPENCV_GENERATED_HPP\n")
         self.header.write("using namespace cv;\n")
         self.header.write("using namespace std;\n")
         self.header.write("using namespace flann;\n")
@@ -306,7 +308,8 @@ class CWrapperGenerator(object):
         self.header.write("typedef SimpleBlobDetector::Params Params;\n")
 
     def finalize_and_write(self, output_path):
-        self.header.write("}")
+        self.header.write("}\n")
+        self.header.write("#endif //__OPENCV_GENERATED_HPP")
         self.source.write("}")
         self.save(output_path, "opencv_generated.hpp", self.header)
         self.save(output_path, "opencv_generated.cpp", self.source)
