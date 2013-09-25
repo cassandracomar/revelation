@@ -19,5 +19,23 @@
 
 extern "C" {
 Mat* cv_create_Mat();
+Mat* cv_Mat_assign(Mat* self, Mat* m);
+Mat* cv_Mat_assignVal(Mat* self, Scalar* s);
+Mat* cv_Mat_getRow(Mat* self, int y);
+Mat* cv_Mat_getCol(Mat* self, int x);
+Mat* cv_Mat_getRowRange(Mat* self, int startrow, int endrow);
+Mat* cv_Mat_getColRange(Mat* self, int startrow, int endrow);
+Mat* cv_Mat_diag(Mat* self);
+Mat* cv_Mat_diag_d(Mat* self, int d);
+Mat* cv_create_diagMat(Mat* d);
+Mat* cv_Mat_clone(Mat* self);
+void cv_Mat_copyTo(Mat* self, Mat* m);
+void cv_Mat_copyTo_masked(Mat* self, Mat* m, Mat* mask);
+void cv_Mat_assignTo(Mat* self, Mat* m);
+void cv_Mat_assignTo_t(Mat*self, Mat* m, int t);
+Mat* cv_Mat_setTo(Mat*self, Scalar* value);
+Mat* cv_Mat_setTo_masked(Mat* self, Scalar* value, Mat* mask);
+Mat* cv_Mat_reshape(Mat* self, int cn);
+Mat* cv_Mat_reshape_rows(Mat* self, int cn, int rows);
 }
 
