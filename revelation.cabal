@@ -20,12 +20,15 @@ library
                           , cbits/mat.cpp
     cc-options:             -fpermissive
     ghc-options:            -pgml g++
-    exposed-modules:        Revelation.Bindings.RawTypes
+    other-modules:          Revelation.Bindings.RawTypes
                           , Revelation.Bindings.RawConsts
                           , Revelation.Bindings.RawFuncs
                           , Revelation.Bindings.CppTypes
                           , Revelation.Bindings.Mat
-                          , Revelation.Video
+    exposed-modules:        Revelation.Video
+                          , Revelation.Mat
+                          , Revelation.UI
+                          , Revelation.Color
     pkgconfig-depends:      opencv
     build-depends:          base >=4.6 && <4.7
                           , bindings-DSL >= 1.0.14 && <= 1.1
