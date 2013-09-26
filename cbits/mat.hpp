@@ -37,5 +37,18 @@ Mat* cv_Mat_setTo(Mat*self, Scalar* value);
 Mat* cv_Mat_setTo_masked(Mat* self, Scalar* value, Mat* mask);
 Mat* cv_Mat_reshape(Mat* self, int cn);
 Mat* cv_Mat_reshape_rows(Mat* self, int cn, int rows);
+size_t cv_Mat_elemSize(Mat* self);
+size_t cv_Mat_elemSize1(Mat* self);
+int cv_Mat_type(Mat* self);
+int cv_Mat_depth(Mat* self);
+size_t cv_Mat_total(Mat* self);
+bool cv_Mat_isContinuous(Mat* self);
+int cv_Mat_channels(Mat* self);
+int cv_Mat_rows(Mat* self);
+int cv_Mat_cols(Mat* self);
+int cv_Mat_empty(Mat* self);
+Size* cv_Mat_size(Mat* self);
+size_t cv_Mat_step1(Mat* self);
+uchar* cv_Mat_ptr(Mat* self);
 }
 

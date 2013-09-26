@@ -1,22 +1,24 @@
 module Main where
-import Revelation.Bindings.RawConsts
 import Revelation.Bindings.RawTypes
 import Revelation.Bindings.RawFuncs
-import Revelation.Bindings.CppTypes
 import Revelation.Bindings.Mat
+import Revelation.Video
 import Foreign.C
-import Foreign.C.Types
 import Control.Monad
+import Pipes
+
+
+waitKey :: Maybe Char -> Int -> Pipe Mat Mat IO ()
+waitKey Nothing n =  do mat <- await
+                        lift $ c'cv_waitKey (fromIntegral n)
+                        yield mat
+                        waitKey Nothing n
+waitKey (Just c) n = do mat <- await
+                        cchar <- lift $ c'cv_waitKey (fromIntegral n)
+                        when (castCCharToChar (fromIntegral cchar) /= c) $ do 
+                          yield mat
+                          waitKey (Just c) n
 
 main :: IO ()
-main = do capture     <- c'cv_create_VideoCapture1 0
-          
-          window_name <- toStdString "Test"
-          c'cv_namedWindow window_name c'CV_WINDOW_NORMAL0
+main = runEffect $ cameraCapture 0 >-> waitKey (Just 'q') 10 >-> imageDisplayWindow "Test"
 
-          img <- c'cv_create_Mat
-
-          forM_ [1..1000] $ \_ -> do
-            c'cv_VideoCapture_read capture img
-            c'cv_imshow window_name img
-            c'cv_waitKey 1

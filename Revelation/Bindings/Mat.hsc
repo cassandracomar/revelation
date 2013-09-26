@@ -8,21 +8,25 @@ import Revelation.Bindings.RawTypes
 import Foreign.C
 import Foreign.C.Types
 import Foreign.Ptr
+import Foreign.ForeignPtr
+import Data.Vector.Storable
+
+type Mat = Ptr C'Mat
 
 #ccall cv_create_Mat        , IO (Ptr <Mat>)
 #ccall cv_Mat_assign        , Ptr <Mat> -> Ptr <Mat> -> IO (Ptr <Mat>) 
 #ccall cv_Mat_assignVal     , Ptr <Mat> -> Ptr <Scalar> -> IO (Ptr <Mat>) 
 
-#ccall cv_Mat_getRow        , Ptr <Mat> -> CInt -> IO (Ptr <Mat>)
-#ccall cv_Mat_getCol        , Ptr <Mat> -> CInt -> IO (Ptr <Mat>)
-#ccall cv_Mat_getRowRange   , Ptr <Mat> -> CInt -> CInt -> IO (Ptr <Mat>)
-#ccall cv_Mat_getColRange   , Ptr <Mat> -> CInt -> CInt -> IO (Ptr <Mat>)
+#ccall cv_Mat_getRow        , Ptr <Mat> -> CInt -> Ptr <Mat>
+#ccall cv_Mat_getCol        , Ptr <Mat> -> CInt -> Ptr <Mat>
+#ccall cv_Mat_getRowRange   , Ptr <Mat> -> CInt -> CInt -> Ptr <Mat>
+#ccall cv_Mat_getColRange   , Ptr <Mat> -> CInt -> CInt -> Ptr <Mat>
 
 #ccall cv_Mat_diag          , Ptr <Mat> -> IO (Ptr <Mat>)
 #ccall cv_Mat_diag_d        , Ptr <Mat> -> CInt -> IO (Ptr <Mat>)
 #ccall cv_create_diagMat    , Ptr <Mat> -> IO (Ptr <Mat>)
 
-#ccall cv_Mat_clone         , Ptr <Mat> -> IO (Ptr <Mat>)
+#ccall cv_Mat_clone         , Ptr <Mat> -> Ptr <Mat>
 #ccall cv_Mat_copyTo        , Ptr <Mat> -> Ptr <Mat> -> IO ()
 #ccall cv_Mat_copyTo_masked , Ptr <Mat> -> Ptr <Mat> -> Ptr <Mat> -> IO ()
 #ccall cv_Mat_assignTo      , Ptr <Mat> -> Ptr <Mat> -> IO ()
@@ -32,3 +36,23 @@ import Foreign.Ptr
 
 #ccall cv_Mat_reshape       , Ptr <Mat> -> CInt -> IO (Ptr <Mat>)
 #ccall cv_Mat_reshape_rows  , Ptr <Mat> -> CInt -> CInt -> IO (Ptr <Mat>)
+
+#ccall cv_Mat_elemSize      , Ptr <Mat> -> CSize
+#ccall cv_Mat_elemSize1     , Ptr <Mat> -> CSize
+#ccall cv_Mat_type          , Ptr <Mat> -> CInt
+#ccall cv_Mat_depth         , Ptr <Mat> -> CInt
+#ccall cv_Mat_total         , Ptr <Mat> -> CSize
+#ccall cv_Mat_isContinuous  , Ptr <Mat> -> CInt
+#ccall cv_Mat_channels      , Ptr <Mat> -> CInt
+#ccall cv_Mat_rows          , Ptr <Mat> -> CInt
+#ccall cv_Mat_cols          , Ptr <Mat> -> CInt
+#ccall cv_Mat_empty         , Ptr <Mat> -> CInt
+#ccall cv_Mat_size          , Ptr <Mat> -> Ptr <Size>
+#ccall cv_Mat_step1         , Ptr <Mat> -> CSize
+#ccall cv_Mat_ptr           , Ptr <Mat> -> IO (Ptr CUChar)
+matToVector :: Ptr C'Mat -> IO (Vector CUChar)
+matToVector m = do p <- c'cv_Mat_ptr m
+                   p' <- newForeignPtr_ p
+                   let len = c'cv_Mat_total m
+                   return $ unsafeFromForeignPtr0 p' (fromIntegral len)
+

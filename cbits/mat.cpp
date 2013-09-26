@@ -98,4 +98,51 @@ Mat* cv_Mat_reshape(Mat* self, int cn) {
 Mat* cv_Mat_reshape_rows(Mat* self, int cn, int rows) {
    return new Mat(self->reshape(cn, rows)); 
 }
+
+
+size_t cv_Mat_elemSize(Mat* self) {
+    return self->elemSize();
+}
+
+size_t cv_Mat_elemSize1(Mat* self) {
+    return self->elemSize1();
+}
+
+int cv_Mat_type(Mat* self) {
+    return self->type();
+}
+
+int cv_Mat_depth(Mat* self) {
+    return self->depth();
+}
+
+size_t cv_Mat_total(Mat* self) {
+    return self->total();
+}
+
+bool cv_Mat_isContinuous(Mat* self) {
+    return self->isContinuous();
+}
+
+int cv_Mat_channels(Mat* self) {
+    return self->channels();
+}
+int cv_Mat_rows(Mat* self) {
+    return self->rows;
+}
+int cv_Mat_cols(Mat* self) {
+    return self->cols;
+}
+int cv_Mat_empty(Mat* self) {
+    return self->empty();
+}
+Size* cv_Mat_size(Mat* self) {
+    return new Size(self->size());
+}
+size_t cv_Mat_step1(Mat* self) {
+    return self->step1();
+}
+uchar* cv_Mat_ptr(Mat* self) {
+    return self->ptr();
+}
 }
