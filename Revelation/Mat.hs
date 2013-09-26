@@ -1,12 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
 module Revelation.Mat ( 
-  Channels(..)
-, Dimensions(..)
+  Channel(..)
+, Dimension(..)
 , Mat (extract)
 , createMat
-, unsafeMatToVector
-, unsafeIndexMat
+, matToVector
+, indexMat
 , module Revelation.Bindings.Mat
 ) where
 
@@ -16,21 +16,21 @@ import Data.Vector.Storable
 import Foreign.ForeignPtr
 import Foreign.Ptr
 
-data Channels = RGB | BGR | Grayscale
-data Dimensions = TwoD | ThreeD
+data Channel = RGB | BGR | Grayscale | HSV | YUV
+data Dimension = TwoD | ThreeD
 
-newtype Mat (d :: Dimensions) (c :: Channels) elem = MkMat { extract :: Ptr C'Mat }
+newtype Mat (d :: Dimension) (c :: Channel) elem = MkMat { extract :: Ptr C'Mat }
 
-createMat :: IO (Mat (d :: Dimensions) (c :: Channels) e)
+createMat :: IO (Mat d c e)
 createMat = do m <- c'cv_create_Mat
                return $ MkMat m
 
-unsafeMatToVector :: Storable e => Mat d c e -> IO (Vector e)
-unsafeMatToVector m = do  p <- c'cv_Mat_ptr (extract m)
-                          p' <- newForeignPtr_ p
-                          len <- c'cv_Mat_total (extract m)
-                          return $ unsafeFromForeignPtr0 (castForeignPtr p') (fromIntegral len)
+matToVector :: Storable e => Mat d c e -> IO (Vector e)
+matToVector m = do  p <- c'cv_Mat_ptr (extract m)
+                    p' <- newForeignPtr_ p
+                    len <- c'cv_Mat_total (extract m)
+                    return $ unsafeFromForeignPtr0 (castForeignPtr p') (fromIntegral len)
 
-unsafeIndexMat :: Storable e => Mat d c e -> Int -> IO e
-unsafeIndexMat m ix = do v <- unsafeMatToVector m 
-                         return $ v ! ix
+indexMat :: Storable e => Mat d c e -> Int -> IO e
+indexMat m i = do v <- matToVector m 
+                  return $ v ! i

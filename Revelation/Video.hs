@@ -1,4 +1,9 @@
-module Revelation.Video where
+module Revelation.Video (
+  cameraCapture
+, VideoCapture
+, Window
+, imageDisplayWindow
+)where
 
 import Revelation.Bindings.RawTypes
 import Revelation.Bindings.RawConsts

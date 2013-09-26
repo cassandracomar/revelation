@@ -2,7 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Revelation.Color (
-  Channels(..)
+  Channel(..)
 , convertColor
 ) where
 
@@ -16,7 +16,7 @@ import Foreign.Ptr
 import Pipes
 import Control.Monad
 
-class Convertable (a :: Channels) (b :: Channels) where
+class Convertable (a :: Channel) (b :: Channel) where
   cvtValue :: Num c => Mat d a e -> Mat d b e -> c
 
 instance Convertable RGB BGR where
@@ -30,6 +30,21 @@ instance Convertable BGR Grayscale where
 
 instance Convertable BGR RGB where
   cvtValue _ _ = c'CV_COLOR_BGR2RGB0
+
+instance Convertable BGR YUV where
+  cvtValue _ _ = c'CV_COLOR_BGR2YUV0
+
+instance Convertable YUV RGB where
+  cvtValue _ _ = c'CV_COLOR_YUV2RGB0
+
+instance Convertable RGB YUV where
+  cvtValue _ _ = c'CV_COLOR_RGB2YUV0
+
+instance Convertable YUV BGR where
+  cvtValue _ _ = c'CV_COLOR_YUV2BGR0
+
+instance Convertable YUV Grayscale where
+  cvtValue _ _ = c'CV_COLOR_YUV2Grayscale0
 
 convertColor :: Convertable c c' => Pipe (Mat d c e) (Mat d c' e) IO ()
 convertColor = forever $ do 

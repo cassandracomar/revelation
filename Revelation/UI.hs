@@ -1,6 +1,3 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE ExplicitForAll #-}
 module Revelation.UI where
 
 import Revelation.Bindings.RawTypes
@@ -10,7 +7,7 @@ import Foreign.C
 import Control.Monad
 import Pipes
 
-waitKey :: forall (d :: Dimensions) (c :: Channels) e. Maybe Char -> Int -> Pipe (Mat d c e) (Mat d c e) IO ()
+waitKey :: Maybe Char -> Int -> Pipe (Mat d c e) (Mat d c e) IO ()
 waitKey Nothing n =  do mat <- await
                         lift $ c'cv_waitKey (fromIntegral n)
                         yield mat
