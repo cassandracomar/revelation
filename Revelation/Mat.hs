@@ -11,6 +11,7 @@ module Revelation.Mat (
 , module Revelation.Bindings.RawTypes
 ) where
 
+import Revelation.Bindings.Utils
 import Revelation.Bindings.RawTypes
 import Revelation.Bindings.Mat
 import Data.Vector.Storable

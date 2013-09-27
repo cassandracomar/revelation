@@ -6,11 +6,10 @@ module Revelation.Color (
 , convertColor
 ) where
 
-import Revelation.Bindings.RawTypes
+import Revelation.Bindings.Utils
 import Revelation.Bindings.RawConsts
 import Revelation.Bindings.RawFuncs
 import Revelation.Mat
-import Revelation.Bindings.CppTypes
 import Foreign.Ptr
 
 import Pipes
@@ -47,6 +46,6 @@ convertColor :: Convertable c c' => Pipe (Mat d c e) (Mat d c' e) CV ()
 convertColor = forever $ do 
                   m  <- await
                   m' <- lift $ createMat
-                  lift . CV $ c'cv_cvtColor (extract m) (extract m') (cvtValue m m') 0
+                  liftCV $ c'cv_cvtColor (extract m) (extract m') (cvtValue m m') 0
                   yield m'
 

@@ -1,11 +1,10 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}#include <bindings.dsl.h>
+#include <bindings.dsl.h>
 #include <opencv_generated.hpp>
 module Revelation.Bindings.RawTypes where
 #strict_import
 import Foreign.C
 import Foreign.C.Types
-newtype CV a = CV { runCV :: IO a }                                         deriving (Functor, Monad)
 #opaque_t Algorithm
 #opaque_t CLAHE
 #opaque_t CvANN_MLP

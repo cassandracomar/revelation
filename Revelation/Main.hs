@@ -1,10 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 module Main where
-import Revelation.Video
-import Revelation.UI
-import Revelation.Color
-import Revelation.Mat
-import Pipes
+import Revelation
 
 main :: IO ()
 main = runCV . runEffect $ 

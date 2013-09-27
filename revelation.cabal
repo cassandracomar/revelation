@@ -18,31 +18,33 @@ library
     c-sources:              cbits/opencv_generated.cpp
                           , cbits/cpptypes.cpp
                           , cbits/mat.cpp
-    cc-options:             -fpermissive
-    ghc-options:            -pgml g++
+    cc-options:             -fpermissive -O3
+    ghc-options:            -pgml g++ -O2
+    exposed-modules:        Revelation
     other-modules:          Revelation.Bindings.RawTypes
                           , Revelation.Bindings.RawConsts
                           , Revelation.Bindings.RawFuncs
                           , Revelation.Bindings.CppTypes
+                          , Revelation.Bindings.Utils
                           , Revelation.Bindings.Mat
-    exposed-modules:        Revelation.Video
+                          , Revelation.Video
                           , Revelation.Mat
                           , Revelation.UI
                           , Revelation.Color
-                          , Revelation.Utils
     pkgconfig-depends:      opencv
     build-depends:          base >=4.6 && <4.7
                           , bindings-DSL >= 1.0.14 && <= 1.1
                           , Cabal >=1.16
                           , vector >= 0.10
                           , pipes >= 4.0
+                          , transformers >= 0.2
     default-language:       Haskell2010
 
 
 executable Test
     main-is:                Main.hs
     pkgconfig-depends:      opencv
-    ghc-options:            -pgml g++
+    ghc-options:            -pgml g++ -O2
     build-depends:          base >=4.6 && <4.7
                           , pipes >= 4.0
                           , revelation >= 0.1.0.0
