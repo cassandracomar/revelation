@@ -5,7 +5,39 @@ OpenCV bindings for Haskell that aim to provide complete access to OpenCV >= 2.0
 This is done by providing access to the C++ functions and methods via export "C" wrappers,
 and using bindings-dsl macros to make the functions available in Haskell.
 
-This is very much a WIP.
+This is very much a WIP, and pull requests / issues / feature requests are very very welcome.
+
+Compilation / Installation
+------------
+
+Compiling this package might be a little tricky at the moment since I've only had the chance to test it on my machine
+so far. First, you need to generate C wrappers for the version of OpenCV on your machine -- this repo holds the wrappers
+for OpenCV 2.4.6 only. You can generate these wrappers (and the corresponding Haskell bindings) via:
+
+    ./setup.sh <path to opencv headers>
+      
+e.g.
+
+    ./setup.sh /usr/local/include
+      
+You want the include directory that contains the opencv2 directory at the top level.
+
+If that goes off without a hitch, compilation *should* be as easy as:
+
+    cabal build --with-gcc=<c++ compiler>
+      
+Cabal doesn't have a way of specifying that the library in use is a C++ library and not a C library, so it tries to use
+gcc for everything. But of course, you can't compile this project without a C++ compiler handy. On my machine the
+following is sufficient:
+
+    cabal build --with-gcc=g++
+      
+The repl command doesn't work with this library and GHC <=7.6 due to a longstanding bug with ghci and dynamically
+linked libraries. However, you can run the small test I have in Main.hs via
+
+    cabal run
+    
+This project currently requires GHC 7.6 (though it might work with 7.4). Submit any issues you have building the library!
 
 C Wrappers
 ----------
