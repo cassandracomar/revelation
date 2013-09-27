@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-#include <bindings.dsl.h>
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}#include <bindings.dsl.h>
 #include <opencv_generated.hpp>
 module Revelation.Bindings.RawFuncs where
 #strict_import

@@ -43,13 +43,10 @@ instance Convertable RGB YUV where
 instance Convertable YUV BGR where
   cvtValue _ _ = c'CV_COLOR_YUV2BGR0
 
-instance Convertable YUV Grayscale where
-  cvtValue _ _ = c'CV_COLOR_YUV2Grayscale0
-
-convertColor :: Convertable c c' => Pipe (Mat d c e) (Mat d c' e) IO ()
+convertColor :: Convertable c c' => Pipe (Mat d c e) (Mat d c' e) CV ()
 convertColor = forever $ do 
                   m  <- await
                   m' <- lift $ createMat
-                  lift $ c'cv_cvtColor (extract m) (extract m') (cvtValue m m') 0
+                  lift . CV $ c'cv_cvtColor (extract m) (extract m') (cvtValue m m') 0
                   yield m'
 

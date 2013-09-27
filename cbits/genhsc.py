@@ -96,6 +96,7 @@ class HSCWrapperGen(object):
     def prep_hsc(self):
         for hsc in [self.hsc_types, self.hsc_consts, self.hsc_funcs]:
             hsc.write("{-# LANGUAGE ForeignFunctionInterface #-}\n")
+            hsc.write("{-# LANGUAGE GeneralizedNewtypeDeriving #-}")
             hsc.write("#include <bindings.dsl.h>\n")
             hsc.write("#include <opencv_generated.hpp>\n")
 
@@ -109,6 +110,8 @@ class HSCWrapperGen(object):
             hsc.write("import Foreign.C.Types\n")
 
         self.hsc_funcs.write("import Revelation.Bindings.RawTypes\n")
+        self.hsc_types.write("newtype CV a = CV { runCV :: IO a } \
+                                        deriving (Functor, Monad)\n")
 
     def save(self, dstdir, outfile, buf):
         f = open(dstdir + outfile + ".hsc", "wt")

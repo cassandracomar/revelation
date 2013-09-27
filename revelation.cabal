@@ -29,6 +29,7 @@ library
                           , Revelation.Mat
                           , Revelation.UI
                           , Revelation.Color
+                          , Revelation.Utils
     pkgconfig-depends:      opencv
     build-depends:          base >=4.6 && <4.7
                           , bindings-DSL >= 1.0.14 && <= 1.1
