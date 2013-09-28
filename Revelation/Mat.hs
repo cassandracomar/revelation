@@ -7,13 +7,11 @@ module Revelation.Mat (
 , createMat
 , matToVector
 , indexMat
-, module Revelation.Bindings.Mat
-, module Revelation.Bindings.RawTypes
 ) where
 
-import Revelation.Bindings.Utils
-import Revelation.Bindings.RawTypes
-import Revelation.Bindings.Mat
+import Revelation.Core
+import OpenCVRaw.Types
+import OpenCVRaw.Mat
 import Data.Vector.Storable
 import Foreign.ForeignPtr
 import Foreign.Ptr

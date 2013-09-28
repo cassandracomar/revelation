@@ -6,11 +6,10 @@ module Revelation.Color (
 , convertColor
 ) where
 
-import Revelation.Bindings.Utils
-import Revelation.Bindings.RawConsts
-import Revelation.Bindings.RawFuncs
+import Revelation.Core
+import OpenCVRaw.Consts
+import OpenCVRaw.Funcs
 import Revelation.Mat
-import Foreign.Ptr
 
 import Pipes
 import Control.Monad

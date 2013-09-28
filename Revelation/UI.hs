@@ -1,8 +1,8 @@
 module Revelation.UI where
 
-import Revelation.Bindings.Utils
-import Revelation.Bindings.RawTypes
-import Revelation.Bindings.RawFuncs
+import Revelation.Core
+import OpenCVRaw.Types
+import OpenCVRaw.Funcs
 import Revelation.Mat
 import Foreign.C
 import Control.Monad

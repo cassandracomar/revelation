@@ -1,1 +1,0 @@
-python cbits/genhsc.py $1 cbits/ Revelation/Bindings opencv2/core/core.hpp opencv2/flann/miniflann.hpp opencv2/ml/ml.hpp opencv2/imgproc/imgproc.hpp opencv2/calib3d/calib3d.hpp opencv2/features2d/features2d.hpp opencv2/video/tracking.hpp opencv2/video/background_segm.hpp opencv2/objdetect/objdetect.hpp opencv2/contrib/contrib.hpp opencv2/highgui/highgui.hpp

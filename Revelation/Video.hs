@@ -5,12 +5,12 @@ module Revelation.Video (
 , imageDisplayWindow
 )where
 
-import Revelation.Bindings.RawTypes
-import Revelation.Bindings.RawConsts
-import Revelation.Bindings.RawFuncs
+import OpenCVRaw.Types
+import OpenCVRaw.Consts
+import OpenCVRaw.Funcs
 import Revelation.Mat
-import Revelation.Bindings.CppTypes
-import Revelation.Bindings.Utils
+import OpenCVRaw.CppTypes
+import Revelation.Core
 import Foreign.Ptr
 
 import Control.Monad
@@ -24,8 +24,8 @@ cameraCapture d = liftCV (c'cv_create_VideoCapture1 $ fromIntegral d) >>= _captu
 _capture :: Ptr C'VideoCapture -> VideoCapture d c e
 _capture cap = lift createMat >>= loop cap
                     where
-                      loop cap mat = do
-                        liftCV $ c'cv_VideoCapture_read cap (extract mat)
+                      loop c mat = do
+                        liftCV $ c'cv_VideoCapture_read c (extract mat)
                         yield mat
                         loop cap mat
 

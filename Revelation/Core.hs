@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Revelation.Bindings.Utils where
+module Revelation.Core where
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 

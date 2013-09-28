@@ -1,43 +1,34 @@
-
 name:                       revelation
 version:                    0.1.0.0
 synopsis:                   OpenCV bindings that provide complete access to OpenCV >= 2.0
+homepage:                   www.github.com/arjuncomar/revelation.git
 license:                    BSD3
 license-file:               LICENSE
 author:                     Arjun Comar
 maintainer:                 nrujac@gmail.com
 category:                   AI, Graphics, Machine Vision
-build-type:                 Custom
+build-type:                 Simple
 cabal-version:              >=1.10
 
+source-repository head
+    type: git
+    location: git://github.com/arjuncomar/revelation.git
+
 library
-    include-dirs:           cbits/
-    includes:               cbits/opencv_generated.hpp
-                          , cbits/cpptypes.hpp
-                          , cbits/mat.hpp
-    c-sources:              cbits/opencv_generated.cpp
-                          , cbits/cpptypes.cpp
-                          , cbits/mat.cpp
-    cc-options:             -fpermissive -O3
-    ghc-options:            -pgml g++ -O2
     exposed-modules:        Revelation
-    other-modules:          Revelation.Bindings.RawTypes
-                          , Revelation.Bindings.RawConsts
-                          , Revelation.Bindings.RawFuncs
-                          , Revelation.Bindings.CppTypes
-                          , Revelation.Bindings.Utils
-                          , Revelation.Bindings.Mat
-                          , Revelation.Video
+    other-modules:          Revelation.Video
                           , Revelation.Mat
                           , Revelation.UI
                           , Revelation.Color
-    pkgconfig-depends:      opencv
+                          , Revelation.Core
+    ghc-options:            -pgml g++ -O2
     build-depends:          base >=4.6 && <4.7
                           , bindings-DSL >= 1.0.14 && <= 1.1
                           , Cabal >=1.16
                           , vector >= 0.10
                           , pipes >= 4.0
                           , transformers >= 0.2
+                          , opencv-raw >= 0.1
     default-language:       Haskell2010
 
 
