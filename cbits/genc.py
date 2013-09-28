@@ -40,6 +40,7 @@ class TypeInfo(object):
             for p in decl[3]:
                 self.fields[p[1]] = p[0]
 
+    @staticmethod
     def gen_cname(name):
         cname = name
         # make basic substitutions to get rid of basic types

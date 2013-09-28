@@ -3,6 +3,10 @@
 from __future__ import print_function
 import os, sys, re, string
 
+if sys.version_info[0] < 3:
+    import codecs
+    open = codecs.open
+
 # the list only for debugging. The real list, used in the real OpenCV build, is specified in CMakeLists.txt
 opencv_hdr_list = [
 "opencv2/core.hpp",
