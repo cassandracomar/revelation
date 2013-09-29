@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Revelation.Color (
   Channel(..)
+, convertColorP
 , convertColor
 ) where
 
@@ -41,10 +42,13 @@ instance Convertable RGB YUV where
 instance Convertable YUV BGR where
   cvtValue _ _ = c'CV_COLOR_YUV2BGR0
 
-convertColor :: Convertable c c' => Pipe (Mat d c e) (Mat d c' e) CV ()
-convertColor = forever $ do 
+convertColorP :: Convertable c c' => Pipe (Mat d c e) (Mat d c' e) CV ()
+convertColorP = forever $ do 
                   m  <- await
-                  m' <- lift $ createMat
-                  liftCV $ c'cv_cvtColor (extract m) (extract m') (cvtValue m m') 0
+                  m' <- lift $ convertColor m
                   yield m'
 
+convertColor :: Convertable c c' => Mat d c e -> CV (Mat d c' e)
+convertColor m = do m' <- createMat
+                    CV $ c'cv_cvtColor (extract m) (extract m') (cvtValue m m') 0
+                    return m'

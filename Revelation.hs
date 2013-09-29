@@ -1,16 +1,10 @@
 module Revelation (
-  CV(runCV)
-, module Revelation.Mat
-, module Revelation.Video
-, module Revelation.UI
-, module Revelation.Color
-, module Revelation.Core
-, module Pipes
+  CV(runCV), module X
 ) where
 
-import Revelation.Mat
-import Revelation.Video
-import Revelation.Color
-import Revelation.UI
-import Revelation.Core
-import Pipes
+import Revelation.Mat as X
+import Revelation.Video as X
+import Revelation.Color as X
+import Revelation.UI as X
+import Revelation.Core 
+import Pipes as X
