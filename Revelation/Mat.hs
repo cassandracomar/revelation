@@ -1,7 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE FlexibleContexts #-}
+
 module Revelation.Mat ( 
   Channel(..)
 , Dimension(..)
@@ -9,9 +14,9 @@ module Revelation.Mat (
 , createMat
 , rows
 , cols
-, matToVector
-, index2_1
-, index2_3
+--, index
+, dataPtr
+--, toVector
 ) where
 
 import Revelation.Core
@@ -19,22 +24,14 @@ import OpenCVRaw.Types
 import OpenCVRaw.Mat
 import Data.Vector.Storable
 import Foreign
-import GHC.Prim
+import Data.Singletons
+import Data.Proxy
+import qualified Data.Foldable as F
+import Linear (V2(..), V3(..))
 
 data Channel = RGB | BGR | Grayscale | HSV | YUV
 data Dimension = TwoD | ThreeD
 
-type family SingleChannel (a :: Channel) :: Constraint
-type instance SingleChannel a = a ~ Grayscale
-
--- This is ugly, but the only way outside of HEAD to provide the correct
--- constraint.
-type family ThreeChannel (a :: Channel) :: Constraint
-type instance ThreeChannel Grayscale = Grayscale ~ RGB
-type instance ThreeChannel RGB = RGB ~ RGB
-type instance ThreeChannel BGR = BGR ~ BGR
-type instance ThreeChannel HSV = HSV ~ HSV
-type instance ThreeChannel YUV = YUV ~ YUV
 
 newtype Mat (d :: Dimension) (c :: Channel) elem = MkMat { extract :: Ptr C'Mat }
 
@@ -58,27 +55,42 @@ dataPtr m = CV $ do
                 p <- c'cv_Mat_ptr (extract m)
                 return $ castPtr p
 
+rowPtr :: Storable e => Mat d c e -> Int -> CV (Ptr e)
+rowPtr m i = CV $ do
+                p <- c'cv_Mat_ptr_index (extract m) (fromIntegral i)
+                return $ castPtr p
                       
-matToVector :: Storable e => Mat d c e -> CV (Vector e)
-matToVector m = CV $ do  
-                    p <- c'cv_Mat_ptr (extract m)
-                    p' <- newForeignPtr_ p
-                    len <- c'cv_Mat_total (extract m)
-                    return $ unsafeFromForeignPtr0 (castForeignPtr p') (fromIntegral len)
+type family ScalarT (c :: Channel) e :: *
+type instance ScalarT Grayscale e = e
+type instance ScalarT RGB e = (e, e, e)
+type instance ScalarT BGR e = (e, e, e)
+type instance ScalarT HSV e = (e, e, e)
+type instance ScalarT YUV e = (e, e, e)
 
--- Once GHC HEAD (7.8) is released, we can provide a single index function that
--- correctly takes the right arguments and returns the right elements.
-index2_1 :: (Storable e, SingleChannel c) => Mat TwoD c e -> Int -> Int -> CV e
-index2_1 m i j = CV $ do 
-                      p <- runCV $ dataPtr m
-                      c <- runCV $ cols m
-                      peekElemOff p $ i * c + j
+type family DimArg (d :: Dimension) :: * -> *
+type instance DimArg TwoD = V2
+type instance DimArg ThreeD = V3
 
-index2_3 :: (Storable e, ThreeChannel c) => Mat TwoD c e -> Int -> Int -> CV (e, e, e)
-index2_3 m i j = CV $ do
-                      p <- runCV $ dataPtr m
-                      c <- runCV $ cols m
-                      e1 <- peekElemOff p $ (i * c + j)
-                      e2 <- peekElemOff p $ (i * c + j + 1)
-                      e3 <- peekElemOff p $ (i * c + j + 2)
-                      return (e1, e2, e3)
+genSingletons [''Channel]
+
+numChannels' :: Channel -> Int
+numChannels' Grayscale = 1
+numChannels' _ = 3
+
+numChannels :: forall c. SingI c => Proxy (c :: Channel) -> Int
+numChannels _ = numChannels' . fromSing $ (sing :: Sing c)
+
+rawArrayLookup :: Storable e => Mat d c e -> Int -> CV (ScalarT c e)
+rawArrayLookup = undefined
+
+index :: forall d c e. (SingI c, F.Foldable (DimArg d)) => Mat d c e -> DimArg d Int -> CV (ScalarT c e)
+index m i = rawArrayLookup m (F.product i * nc)
+              where nc = numChannels (Proxy :: Proxy c)
+
+toVector m = CV $ do
+               p <- runCV $ rowPtr m 0
+               p' <- newForeignPtr_ p
+               len <- c'cv_Mat_total (extract m)
+               return $ unsafeFromForeignPtr0 p' (fromIntegral len)
+
+

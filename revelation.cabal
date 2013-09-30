@@ -23,13 +23,15 @@ library
                           , Revelation.Core
     ghc-options:            -pgml g++ -O2
     build-depends:          base >=4.6 && <4.7
-                          , bindings-DSL >= 1.0.14 && <= 1.1
                           , Cabal >=1.16
                           , vector >= 0.10
                           , pipes >= 4.0
                           , transformers >= 0.2
                           , opencv-raw >= 0.1
                           , ghc-prim
+                          , singletons
+                          , tagged
+                          , linear
     default-language:       Haskell2010
 
 

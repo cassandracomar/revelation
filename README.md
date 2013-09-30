@@ -30,5 +30,8 @@ Second, if you pick a random CV paper and read through it, you'll find something
 as pipelines with several discrete stages. This means translating these algorithms to code is more natural when the building blocks
 you're given fit together in pipelines.
 
+However this kind of API doesn't work well for the many image processing problems for which OpenCV is used. For these kinds of algorithms,
+a standard monadic (mutable) API is under way, and a pure API (via copying) for those that prefer it.
+
 More description and explanation on how to use this API will follow as it's developed further and its semantics are established and 
 stabilized.
