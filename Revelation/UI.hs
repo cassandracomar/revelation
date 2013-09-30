@@ -7,12 +7,16 @@ import Foreign.C
 import Control.Monad
 import Pipes
 
-waitKeyP :: Maybe Char -> Int -> Pipe (Mat d c e) (Mat d c e) CV ()
+waitKey :: Integral a => a -> CV Char
+waitKey n = CV $ do c <- c'cv_waitKey (fromIntegral n)
+                    return $ castCCharToChar (fromIntegral c)
+
+waitKeyP :: Integral a => Maybe Char -> a -> Pipe (Mat d c e) (Mat d c e) CV ()
 waitKeyP Nothing n =  forever $ do  
                           mat <- await
-                          liftCV $ c'cv_waitKey (fromIntegral n)
+                          lift $ waitKey n
                           yield mat
 waitKeyP (Just c) n = do  mat <- await
-                          cchar <- liftCV $ c'cv_waitKey (fromIntegral n)
+                          c' <- lift $ waitKey n
                           yield mat
-                          when (castCCharToChar (fromIntegral cchar) /= c) $ waitKeyP (Just c) n
+                          when (c' /= c) $ waitKeyP (Just c) n
