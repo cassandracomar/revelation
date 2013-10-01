@@ -1,4 +1,3 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 
@@ -46,19 +45,18 @@ dataPtr m = CV $ do
                 p <- c'cv_Mat_ptr (extract m)
                 return $ castPtr p
 
-type family ScalarT (c :: Channel) :: * -> *
-type instance ScalarT Grayscale = V1
-type instance ScalarT RGB = V3 
-type instance ScalarT BGR = V3
-type instance ScalarT HSV = V3
-type instance ScalarT YUV = V3
+type family ElemT (c :: Channel) :: * -> *
+type instance ElemT Grayscale = V1
+type instance ElemT RGB = V3 
+type instance ElemT BGR = V3
+type instance ElemT HSV = V3
+type instance ElemT YUV = V3
 
-rowPtr :: Storable (ScalarT c e) => Mat c e -> Int -> CV (Ptr (ScalarT c e))
+rowPtr :: Storable (ElemT c e) => Mat c e -> Int -> CV (Ptr (ElemT c e))
 rowPtr m i = CV $ do
                 p <- c'cv_Mat_ptr_index (extract m) (fromIntegral i)
                 return $ castPtr p
                       
-
-index :: Storable (ScalarT c e) => Mat c e -> V2 Int -> CV (ScalarT c e)
+index :: Storable (ElemT c e) => Mat c e -> V2 Int -> CV (ElemT c e)
 index m (V2 i j) = do p <- rowPtr m i
                       CV $ peekElemOff p j
