@@ -6,7 +6,7 @@ module Revelation.Mat (
 -- ** Types
   Channel(..)
 , Mat (extract)
-, InverseMethod(..), invert, invertBy
+, MatExpr (extractExpr)
 , ElemT
 , CVElement(..)
 -- ** Constructors
@@ -15,7 +15,10 @@ module Revelation.Mat (
 -- ** Functions
 , rows, cols
 , index, fromMat
+, promote, force
+, InverseMethod(..), invert, invertBy
 , transpose
+, (.+.), (.*.)
 ) where
 
 import Revelation.Core
@@ -34,6 +37,16 @@ data Channel = RGB | BGR | Grayscale | HSV | YUV
 -- | Matrix type - type parameter c must have kind Channel.
 -- Use extract to get at the underlying C'Mat ptr.
 newtype Mat (c :: Channel) elem = MkMat { extract :: Ptr C'Mat }
+
+-- | Lazily evaluated matrix expressions. OpenCV uses this type to perform
+-- some optimizations on matrix operations, so it's preserved. Usage of
+-- this type is generally referentially transparent because there's no way
+-- to inspect its value, and it's used only for mathematical operations.
+-- However, expressions are **unchecked**! That means you'll get a runtime
+-- error if you attempt to add or multiply matrices of the wrong type.
+-- This would be tracked in the types, but it's currently very difficult to
+-- do.
+newtype MatExpr (c :: Channel) elem = MkMatExpr { extractExpr :: Ptr C'MatExpr }
 
 -- | Type synonym family to deal with the storage format for matrices
 -- of various channels. If you need to pass something of this type
@@ -170,18 +183,30 @@ inverseMethod SVD = c'CV_DECOMP_SVD0
 -- always returned. The matrix provided is guaranteed to at least be a
 -- pseudo-inverse (left or right). Gives a true inverse when the matrix
 -- is square and non-singular.
-invert :: Mat c e -> CV (Mat c e)
+invert :: MatExpr c e -> MatExpr c e
 invert = invertBy SVD
 
 -- | Inverts the given matrix with the provided method. This function is
 -- partial if the method passed is not SVD *and* a singular or non-square
 -- matrix is passed in.
-invertBy :: InverseMethod -> Mat c e -> CV (Mat c e)
-invertBy im m = CV $ do
-                  m' <- c'cv_Mat_inv_mat (extract m) (inverseMethod im)
-                  return $ MkMat m'
+invertBy :: InverseMethod -> MatExpr c e -> MatExpr c e
+invertBy im m = MkMatExpr $ c'cv_Mat_inv_mat (extractExpr m) (inverseMethod im)
 
-transpose :: Mat c e -> CV (Mat c e)
-transpose m = CV $ do
-                m' <- c'cv_Mat_transpose_mat (extract m)
-                return $ MkMat m'
+transpose :: MatExpr c e -> MatExpr c e
+transpose = MkMatExpr . c'cv_Mat_transpose_mat . extractExpr
+
+-- | Forces the evaluation of an accumulated Matrix Expression.
+force :: MatExpr c e -> CV (Mat c e)
+force m = CV $ do
+            m' <- c'force (extractExpr m)
+            return $ MkMat m'
+
+-- | Promotes a matrix to a matrix expression. Think m -> (\() -> m).
+promote :: Mat c e -> MatExpr c e
+promote = MkMatExpr . c'promote . extract
+
+(.+.) :: MatExpr c e -> MatExpr c e -> MatExpr c e
+m1 .+. m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_add` (extractExpr m2) 
+
+(.*.) :: MatExpr c e -> MatExpr c e -> MatExpr c e
+m1 .*. m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_mult` (extractExpr m2) 
