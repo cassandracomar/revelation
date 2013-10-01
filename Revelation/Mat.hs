@@ -1,5 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE Rank2Types #-}
 
 module Revelation.Mat ( 
   Channel(..)
@@ -9,15 +11,16 @@ module Revelation.Mat (
 , rows
 , cols
 , index
-, dataPtr
-, rowPtr
+, fromMat
 ) where
 
 import Revelation.Core
 import OpenCVRaw.Types
 import OpenCVRaw.Mat
 import Foreign
-import Linear (V1(..), V2(..), V3(..))
+import Linear 
+import qualified Data.Vector as V
+import qualified Data.Vector.Storable as VS
 
 data Channel = RGB | BGR | Grayscale | HSV | YUV
 data Dimension = TwoD | ThreeD
@@ -40,11 +43,6 @@ cols m = CV $ do
             c <- c'cv_Mat_cols (extract m)
             return $ fromIntegral c
 
-dataPtr :: Storable e => Mat c e -> CV (Ptr e)
-dataPtr m = CV $ do 
-                p <- c'cv_Mat_ptr (extract m)
-                return $ castPtr p
-
 type family ElemT (c :: Channel) :: * -> *
 type instance ElemT Grayscale = V1
 type instance ElemT RGB = V3 
@@ -60,3 +58,12 @@ rowPtr m i = CV $ do
 index :: Storable (ElemT c e) => Mat c e -> V2 Int -> CV (ElemT c e)
 index m (V2 i j) = do p <- rowPtr m i
                       CV $ peekElemOff p j
+
+fromMat :: Storable (ElemT c e) => Mat c e -> CV (V.Vector (VS.Vector (ElemT c e)))
+fromMat m = CV $ do 
+              rs <- runCV $ rows m
+              cs <- runCV $ cols m
+              V.forM (V.fromList [0 .. (rs-1)]) $ \i -> do
+                p <- runCV $ rowPtr m i
+                p' <- newForeignPtr_ p
+                return $ VS.unsafeFromForeignPtr0 p' cs

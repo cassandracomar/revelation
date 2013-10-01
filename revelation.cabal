@@ -34,7 +34,7 @@ library
                           , tagged
                           , linear
     default-language:       Haskell2010
-    extensions:             DataKinds
+    default-extensions:     DataKinds
                           , KindSignatures
 
 
