@@ -11,7 +11,7 @@ waitKey :: Integral a => a -> CV Char
 waitKey n = CV $ do c <- c'cv_waitKey (fromIntegral n)
                     return $ castCCharToChar (fromIntegral c)
 
-waitKeyP :: Integral a => Maybe Char -> a -> Pipe (Mat d c e) (Mat d c e) CV ()
+waitKeyP :: Integral a => Maybe Char -> a -> Pipe (Mat c e) (Mat c e) CV ()
 waitKeyP Nothing n =  forever $ do  
                           mat <- await
                           lift $ waitKey n

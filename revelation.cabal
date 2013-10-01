@@ -21,6 +21,7 @@ library
                           , Revelation.UI
                           , Revelation.Color
                           , Revelation.Core
+                          , Revelation.Utils
     ghc-options:            -pgml g++ -O2
     build-depends:          base >=4.6 && <4.7
                           , Cabal >=1.16
@@ -33,6 +34,8 @@ library
                           , tagged
                           , linear
     default-language:       Haskell2010
+    extensions:             DataKinds
+                          , KindSignatures
 
 
 executable Test
@@ -42,5 +45,6 @@ executable Test
     build-depends:          base >=4.6 && <4.7
                           , pipes >= 4.0
                           , revelation >= 0.1.0.0
+                          , linear
     default-language:       Haskell2010
     hs-source-dirs:         Revelation/
