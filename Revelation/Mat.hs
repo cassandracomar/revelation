@@ -18,7 +18,7 @@ module Revelation.Mat (
 , promote, force
 , InverseMethod(..), invert, invertBy
 , transpose
-, (.+.), (.*.)
+, (.+.), (.*.), (.*), (*.)
 ) where
 
 import Revelation.Core
@@ -210,3 +210,9 @@ m1 .+. m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_add` (extractExpr m2)
 
 (.*.) :: MatExpr c e -> MatExpr c e -> MatExpr c e
 m1 .*. m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_mult` (extractExpr m2) 
+
+(*.) :: Double -> MatExpr c e -> MatExpr c Double
+a *. m = MkMatExpr $ (extractExpr m) `c'cv_Mat_scale` (realToFrac a)
+
+(.*) :: MatExpr c e -> Double -> MatExpr c Double
+m .* a = MkMatExpr $ (extractExpr m) `c'cv_Mat_scale` (realToFrac a)
