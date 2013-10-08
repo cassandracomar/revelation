@@ -28,7 +28,7 @@ library
                           , vector >= 0.10
                           , pipes >= 4.0
                           , transformers >= 0.2
-                          , opencv-raw >= 0.1
+                          , opencv >= 3.0.0
                           , ghc-prim
                           , singletons
                           , tagged
@@ -40,7 +40,6 @@ library
 
 executable Test
     main-is:                Main.hs
-    pkgconfig-depends:      opencv
     ghc-options:            -pgml g++ -O2
     build-depends:          base >=4.6 && <4.7
                           , pipes >= 4.0
