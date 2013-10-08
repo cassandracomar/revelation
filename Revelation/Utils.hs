@@ -11,3 +11,4 @@ indexP = forever $ do
             v <- lift $ index m (V2 0 0)
             liftCV $ print v
             yield m
+
