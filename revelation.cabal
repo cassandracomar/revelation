@@ -1,6 +1,6 @@
 name:                       revelation
 version:                    0.1.0.0
-synopsis:                   OpenCV bindings that provide complete access to OpenCV >= 2.0
+synopsis:                   Haskell OpenCV Library
 homepage:                   www.github.com/arjuncomar/revelation.git
 license:                    BSD3
 license-file:               LICENSE
