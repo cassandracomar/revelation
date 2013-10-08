@@ -9,14 +9,15 @@ release of OpenCV.
 
 This is very much a WIP, and pull requests / issues / feature requests are very very welcome.
 
-I've moved the raw bindings to [opencv-raw](https://github.com/arjuncomar/opencv-raw.git), and you can help me integrate them into
-OpenCV [here](https://github.com/arjuncomar/opencv.git).
+The raw bindings have been integrated into OpenCV which you can find in my fork [here](https://github.com/arjuncomar/opencv.git).
+Building that fork will install a package called opencv that will provide the raw bindings necessary for this package.
 
 Compilation / Installation
 ------------
 
-This project currently requires GHC 7.6 (though it might work with 7.4). It also requires opencv-raw which takes a little effort
-to get working. This library should build easily and relatively painlessly. 
+This project currently requires GHC 7.6 (though it might work with 7.4). This package requires opencv installed from 
+[my fork](https://github.com/arjuncomar/opencv). Let me know if you have any trouble building it.
+This library should build easily and relatively painlessly. 
 
 Submit any issues you have building the library!
 
