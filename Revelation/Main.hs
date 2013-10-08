@@ -6,8 +6,7 @@ import Control.Monad
 
 main :: IO ()
 main = runCV . runEffect $ 
---       (cameraCapture 0 :: VideoCapture RGB e)
-       (fileCapture "/home/greghale/Desktop/test.avi" :: VideoCapture RGB e)
+       (cameraCapture 0 :: VideoCapture RGB e)
        >-> convertColorP
        >-> indexP 
        >-> waitKeyP (Just 'q') 10 
