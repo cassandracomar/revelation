@@ -25,6 +25,7 @@ import Revelation.Core
 import OpenCVRaw.Types
 import OpenCVRaw.Mat
 import OpenCVRaw.Consts
+import OpenCVRaw.Extras
 import Foreign
 import Foreign.C
 import Linear 

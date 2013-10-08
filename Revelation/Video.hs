@@ -1,8 +1,9 @@
 module Revelation.Video (
   cameraCapture
-, VideoCapture
-, Window
-, imageDisplayWindow
+  , fileCapture
+  , VideoCapture
+  , Window
+  , imageDisplayWindow
 )where
 
 import OpenCVRaw.Types
@@ -10,8 +11,10 @@ import OpenCVRaw.Consts
 import OpenCVRaw.Funcs
 import Revelation.Mat
 import OpenCVRaw.CppTypes
+import OpenCVRaw.CapFile
 import Revelation.Core
 import Foreign.Ptr
+import Foreign.C.String
 
 import Control.Monad
 import Pipes
@@ -20,7 +23,10 @@ type VideoCapture c e = Producer (Mat c e) CV ()
 
 cameraCapture :: Int -> VideoCapture c e
 cameraCapture d = liftCV (c'cv_create_VideoCapture1 $ fromIntegral d) >>= _capture
-                     
+
+fileCapture :: String -> VideoCapture c e
+fileCapture fn = liftCV (withCString fn c'cv_create_VideoCapture_file) >>= _capture
+
 _capture :: Ptr C'VideoCapture -> VideoCapture c e
 _capture cap = lift unsafeCreateMat >>= loop cap
                     where
