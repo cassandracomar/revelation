@@ -16,12 +16,12 @@ source-repository head
 
 library
     exposed-modules:        Revelation
-    other-modules:          Revelation.Video
-                          , Revelation.Mat
+    other-modules:          Revelation.Mat
                           , Revelation.UI
                           , Revelation.Color
                           , Revelation.Core
                           , Revelation.Utils
+--                          , Revelation.Video
     ghc-options:            -pgml g++ -O2
     build-depends:          base >=4.6 && <4.7
                           , Cabal >=1.16
@@ -29,21 +29,19 @@ library
                           , pipes >= 4.0
                           , transformers >= 0.2
                           , opencv >= 3.0.0
-                          , ghc-prim
-                          , singletons
-                          , tagged
-                          , linear
+                          , linear >= 1.3
+                          , lens >= 3.9
     default-language:       Haskell2010
     default-extensions:     DataKinds
                           , KindSignatures
 
 
-executable Test
-    main-is:                Main.hs
-    ghc-options:            -pgml g++ -O2
-    build-depends:          base >=4.6 && <4.7
-                          , pipes >= 4.0
-                          , revelation >= 0.1.0.0
-                          , linear
-    default-language:       Haskell2010
-    hs-source-dirs:         Revelation/
+--executable Test
+--    main-is:                Main.hs
+--    ghc-options:            -pgml g++ -O2
+--    build-depends:          base >=4.6 && <4.7
+--                          , pipes >= 4.0
+--                          , revelation >= 0.1.0.0
+--                          , linear
+--    default-language:       Haskell2010
+--    hs-source-dirs:         Revelation/

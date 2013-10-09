@@ -1,6 +1,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Revelation.Mat ( 
 -- ** Types
@@ -14,22 +17,25 @@ module Revelation.Mat (
 , createIdentity, ones, zeros
 -- ** Functions
 , rows, cols
-, index, fromMat
+, subMat
+, getAt, setAt, fromMat, asVector
+, pixel
 , promote, force
+, promoting, forcing
 , InverseMethod(..), invert, invertBy
 , transpose
 , (.+.), (.*.), (.*), (*.)
+, (~+~), (~*~)
 ) where
 
 import Revelation.Core
-import OpenCVRaw.Types
-import OpenCVRaw.Mat
-import OpenCVRaw.Consts
+import OpenCV
 import Foreign
 import Foreign.C
 import Linear 
 import qualified Data.Vector as V
 import qualified Data.Vector.Storable as VS
+import Control.Lens
 
 -- | Promoted data type to track channel type at the type level.
 data Channel = RGB | BGR | Grayscale | HSV | YUV
@@ -148,28 +154,68 @@ cols m = CV $ do
             c <- c'cv_Mat_cols (extract m)
             return $ fromIntegral c
 
--- | Extract's a pointer to a given row, and returns a correctly typed
+-- | Extracts a pointer to a given row, and returns a correctly typed
 -- C Array. 
 rowPtr :: Storable (ElemT c e) => Mat c e -> Int -> CV (Ptr (ElemT c e))
 rowPtr m i = CV $ do
                 p <- c'cv_Mat_ptr_index (extract m) (fromIntegral i)
                 return $ castPtr p
-                      
+
+-- | Extracts a sub matrix from a given matrix.
+-- | First parameter is top left, second parameter is bottom right.
+subMat :: Mat c e -> V2 Int -> V2 Int -> CV (Mat c e)
+subMat m (V2 i j) (V2 k l) = CV $ do
+                                m' <- c'cv_Mat_getRowRange (extract m) (fromIntegral i) (fromIntegral k)
+                                m'' <- c'cv_Mat_getColRange m' (fromIntegral j) (fromIntegral l)
+                                return $ MkMat m''
+
 -- | Index into a matrix at (row, column) given by (V2 row column).
-index :: Storable (ElemT c e) => Mat c e -> V2 Int -> CV (ElemT c e)
-index m (V2 i j) = do p <- rowPtr m i
+-- | Getter
+getAt :: Storable (ElemT c e) => V2 Int -> Mat c e -> CV (ElemT c e)
+getAt (V2 i j) m = do p <- rowPtr m i
                       CV $ peekElemOff p j
 
--- | Create a Vector (of Storable.Vectors)
+getInternal :: Storable (ElemT c e) => V2 Int -> CV (Mat c e) -> CV (ElemT c e)
+getInternal i m = m >>= getAt i
+
+-- | Index into a matrix at (row, column) given by (V2 row column).
+-- | Setter
+setAt :: Storable (ElemT c e) => V2 Int -> ElemT c e -> Mat c e -> CV (Mat c e)
+setAt (V2 i j) e m = do p <- rowPtr m i
+                        CV $ pokeElemOff p j e
+                        return m
+
+setInternal :: Storable (ElemT c e) => V2 Int -> CV (ElemT c e) -> CV (Mat c e) -> CV (Mat c e)
+setInternal i e m = do e' <- e
+                       m' <- m
+                       setAt i e' m'
+
+type instance Index (CV (Mat c e)) = V2 Int
+type instance IxValue (CV (Mat c e)) = CV (ElemT c e)
+
+instance (Functor f, Storable (ElemT c e)) => Ixed f (CV (Mat c e)) where
+  ix i = ilens getter setter
+        where getter m = (i, getInternal i m)
+              setter = flip (setInternal i)
+
+pixel :: (Functor f, Storable (ElemT c e)) => V2 Int -> IndexedLensLike' (V2 Int) f (CV (Mat c e)) (CV (ElemT c e))
+pixel = ix
+
+-- | Create a Vector (of Vectors)
 -- (provided for integration with linear)
-fromMat :: Storable (ElemT c e) => Mat c e -> CV (V.Vector (VS.Vector (ElemT c e)))
+fromMat :: Storable (ElemT c e) => Mat c e -> CV (V.Vector (V.Vector (ElemT c e)))
 fromMat m = CV $ do 
               rs <- runCV $ rows m
               cs <- runCV $ cols m
               V.forM (V.fromList [0 .. (rs-1)]) $ \i -> do
                 p <- runCV $ rowPtr m i
                 p' <- newForeignPtr_ p
-                return $ VS.unsafeFromForeignPtr0 p' cs
+                return . V.convert $ VS.unsafeFromForeignPtr0 p' cs
+
+-- | Create a single long Vector (lazily)
+asVector :: Storable (ElemT c e) => Mat c e -> CV (V.Vector (ElemT c e))
+asVector m = do v <- fromMat m 
+                return $ V.foldr (V.++) V.empty v
 
 -- | The decomposition method used to compute the inverse
 data InverseMethod = LU | Cholesky | SVD
@@ -201,18 +247,37 @@ force m = CV $ do
             m' <- c'force (extractExpr m)
             return $ MkMat m'
 
--- | Promotes a matrix to a matrix expression. Think m -> (\() -> m).
+-- | Promotes a matrix to a matrix expression. Think (\m -> (\() -> m)).
 promote :: Mat c e -> MatExpr c e
 promote = MkMatExpr . c'promote . extract
 
+-- / Convenience Iso for promotion 
+promoting :: Iso (Mat c e) (CV (Mat c e)) (MatExpr c e) (MatExpr c e)
+promoting = iso promote force
+
+-- | Convenience Iso for forcing
+forcing :: Iso (MatExpr c e) (MatExpr c e) (CV (Mat c e)) (Mat c e)
+forcing = from promoting
+
+-- | element-wise matrix addition
+(~+~) :: MatExpr c e -> MatExpr c e -> MatExpr c e
+m1 ~+~ m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_add` (extractExpr m2) 
+
+-- | standard matrix addition, equivalent to (~+~)
 (.+.) :: MatExpr c e -> MatExpr c e -> MatExpr c e
-m1 .+. m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_add` (extractExpr m2) 
+(.+.) = (~+~)
+
+-- | This is **element**-wise matrix multiplication, not the usual
+(~*~) :: MatExpr c e -> MatExpr c e -> MatExpr c e
+m1 ~*~ m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_mult` (extractExpr m2) 
 
 (.*.) :: MatExpr c e -> MatExpr c e -> MatExpr c e
-m1 .*. m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_mult` (extractExpr m2) 
+(.*.) = undefined
 
+-- | Matrix left scaling
 (*.) :: Double -> MatExpr c e -> MatExpr c Double
 a *. m = MkMatExpr $ (extractExpr m) `c'cv_Mat_scale` (realToFrac a)
 
+-- | Matrix right scaling
 (.*) :: MatExpr c e -> Double -> MatExpr c Double
 m .* a = MkMatExpr $ (extractExpr m) `c'cv_Mat_scale` (realToFrac a)

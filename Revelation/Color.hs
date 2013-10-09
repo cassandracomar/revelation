@@ -8,8 +8,7 @@ module Revelation.Color (
 ) where
 
 import Revelation.Core
-import OpenCVRaw.Consts
-import OpenCVRaw.Funcs
+import OpenCV
 import Revelation.Mat
 
 import Pipes

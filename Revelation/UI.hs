@@ -1,7 +1,7 @@
 module Revelation.UI where
 
 import Revelation.Core
-import OpenCVRaw.Funcs
+import OpenCV
 import Revelation.Mat
 import Foreign.C
 import Control.Monad

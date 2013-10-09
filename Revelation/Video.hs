@@ -5,11 +5,10 @@ module Revelation.Video (
 , imageDisplayWindow
 )where
 
-import OpenCVRaw.Types
-import OpenCVRaw.Consts
-import OpenCVRaw.Funcs
+import OpenCV.Types
+import OpenCV.Consts
+import OpenCV.Funcs
 import Revelation.Mat
-import OpenCVRaw.CppTypes
 import Revelation.Core
 import Foreign.Ptr
 
