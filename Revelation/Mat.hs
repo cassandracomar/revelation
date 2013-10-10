@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE InstanceSigs #-}
 
 module Revelation.Mat ( 
 -- ** Types
@@ -26,6 +25,7 @@ module Revelation.Mat (
 , transpose
 , (.+.), (.*.), (.*), (*.)
 , (~+~), (~*~)
+, neighborhood
 ) where
 
 import Revelation.Core
@@ -175,31 +175,67 @@ getAt :: Storable (ElemT c e) => V2 Int -> Mat c e -> CV (ElemT c e)
 getAt (V2 i j) m = do p <- rowPtr m i
                       CV $ peekElemOff p j
 
-getInternal :: Storable (ElemT c e) => V2 Int -> CV (Mat c e) -> CV (ElemT c e)
-getInternal i m = m >>= getAt i
-
 -- | Index into a matrix at (row, column) given by (V2 row column).
 -- | Setter
-setAt :: Storable (ElemT c e) => V2 Int -> ElemT c e -> Mat c e -> CV (Mat c e)
-setAt (V2 i j) e m = do p <- rowPtr m i
+setAt :: Storable (ElemT c e) => V2 Int -> Mat c e ->ElemT c e -> CV (Mat c e)
+setAt (V2 i j) m e = do p <- rowPtr m i
                         CV $ pokeElemOff p j e
                         return m
-
-setInternal :: Storable (ElemT c e) => V2 Int -> CV (ElemT c e) -> CV (Mat c e) -> CV (Mat c e)
-setInternal i e m = do e' <- e
-                       m' <- m
-                       setAt i e' m'
 
 type instance Index (CV (Mat c e)) = V2 Int
 type instance IxValue (CV (Mat c e)) = CV (ElemT c e)
 
 instance (Functor f, Storable (ElemT c e)) => Ixed f (CV (Mat c e)) where
   ix i = ilens getter setter
-        where getter m = (i, getInternal i m)
-              setter = flip (setInternal i)
+        where getter m = (i, getInternal m)
+              setter = setInternal
+              getInternal m = m >>= getAt i
+              setInternal m e = do  e' <- e
+                                    m' <- m
+                                    setAt i m' e'
 
-pixel :: (Functor f, Storable (ElemT c e)) => V2 Int -> IndexedLensLike' (V2 Int) f (CV (Mat c e)) (CV (ElemT c e))
+-- | Lens for indexed access into a Mat. The matrix and element are always
+-- in CV because getting and setting can't be done safely outside of
+-- a monad. This is equivalent to ix but a little easier to use
+-- because it's less polymorphic.
+pixel :: forall f c e. (Functor f, Storable (ElemT c e)) => V2 Int -> IndexedLensLike' (V2 Int) f (CV (Mat c e)) (CV (ElemT c e))
 pixel = ix
+
+-- | provides the 8/24/48/etc. neighborhood around a pixel (including the pixel
+-- itself). The first parameter is the max pixel distance from 
+getNeighborhood :: Storable (ElemT c e) => Int -> V2 Int -> Mat c e -> CV (V.Vector (ElemT c e))
+getNeighborhood s (V2 i j) m = do rs <- rows m
+                                  cs <- cols m
+                                  m' <- subMat m tl (br rs cs)
+                                  asVector m'
+                                    where clampedLower k = if k < 0 then 0 else k
+                                          clampedHigher b k = if k >= b then b else k
+                                          tl = V2 (clampedLower $ i - s) (clampedLower $ j - s)
+                                          br rs cs = V2 (clampedHigher rs $ i + s) (clampedHigher cs $ i + s)
+
+-- | Sets the entire neighborhood for a pixel. This is a relatively
+-- inefficient function.
+setNeighborhood :: Storable (ElemT c e) => Int -> V2 Int -> Mat c e -> V.Vector (ElemT c e) -> CV (Mat c e)
+setNeighborhood s (V2 i j) m v = do rs <- rows m
+                                    cs <- cols m
+                                    V.forM_ (zipped rs cs) $ \(k, e) -> (return m) & pixel k .~ (return e)
+                                    return m
+                                    where inds rs cs = V.fromList [V2 x y |  x <- [(i - s) .. (i + s)]
+                                                                           , y <- [(j - s) .. (j + s)] 
+                                                                           , x >= 0 && x < rs
+                                                                           , y >= 0 && y < cs
+                                                                           , not (x == i && y == i)]
+                                          zipped rs cs = V.zip (inds rs cs) v
+
+neighborhood :: forall f c e. (Functor f, Storable (ElemT c e)) => Int -> V2 Int -> IndexedLensLike' (V2 Int) f (CV (Mat c e)) (CV (V.Vector (ElemT c e)))
+neighborhood s i = ilens getter setter
+                    where getter m = (i, getNInt m)
+                          setter = setNInt
+                          getNInt m = m >>= getNeighborhood s i
+                          setNInt m e = do e' <- e
+                                           m' <- m
+                                           setNeighborhood s i m' e'
+
 
 -- | Create a Vector (of Vectors)
 -- (provided for integration with linear)
@@ -271,6 +307,7 @@ m1 ~+~ m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_add` (extractExpr m2)
 (~*~) :: MatExpr c e -> MatExpr c e -> MatExpr c e
 m1 ~*~ m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_mult` (extractExpr m2) 
 
+-- | Normal matrix multiplication.
 (.*.) :: MatExpr c e -> MatExpr c e -> MatExpr c e
 (.*.) = undefined
 
