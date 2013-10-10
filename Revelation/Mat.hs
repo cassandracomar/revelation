@@ -18,14 +18,13 @@ module Revelation.Mat (
 , rows, cols
 , subMat
 , getAt, setAt, fromMat, asVector
-, pixel
+, pixel, neighborhood
 , promote, force
 , promoting, forcing
 , InverseMethod(..), invert, invertBy
 , transpose
 , (.+.), (.*.), (.*), (*.)
 , (~+~), (~*~)
-, neighborhood
 ) where
 
 import Revelation.Core
@@ -214,7 +213,8 @@ getNeighborhood s (V2 i j) m = do rs <- rows m
                                           br rs cs = V2 (clampedHigher rs $ i + s) (clampedHigher cs $ i + s)
 
 -- | Sets the entire neighborhood for a pixel. This is a relatively
--- inefficient function.
+-- inefficient function because we can't just write the entire vector at
+-- once and instead have to write each element individually.
 setNeighborhood :: Storable (ElemT c e) => Int -> V2 Int -> Mat c e -> V.Vector (ElemT c e) -> CV (Mat c e)
 setNeighborhood s (V2 i j) m v = do rs <- rows m
                                     cs <- cols m
@@ -227,6 +227,8 @@ setNeighborhood s (V2 i j) m v = do rs <- rows m
                                                                            , not (x == i && y == i)]
                                           zipped rs cs = V.zip (inds rs cs) v
 
+-- | Lens to the 8/24/48/etc. neighborhood of a pixel (including the pixel
+-- itself).
 neighborhood :: forall f c e. (Functor f, Storable (ElemT c e)) => Int -> V2 Int -> IndexedLensLike' (V2 Int) f (CV (Mat c e)) (CV (V.Vector (ElemT c e)))
 neighborhood s i = ilens getter setter
                     where getter m = (i, getNInt m)
