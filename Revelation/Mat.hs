@@ -102,7 +102,6 @@ instance CVElement (V3 Int16) where
 instance CVElement (V3 Int8) where
   cvElemType _ = c'CV_8SC3
 
-
 -- | A safe matrix creation function. This one gives you exactly what you ask
 -- for, and guarantees that a matrix of the appropriate type and size is 
 -- allocated. The ElemT c e parameter is safely passed as undefined because
