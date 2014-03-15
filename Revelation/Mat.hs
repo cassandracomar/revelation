@@ -35,6 +35,8 @@ import Linear
 import qualified Data.Vector as V
 import qualified Data.Vector.Storable as VS
 import Control.Lens
+import Control.Applicative
+import Control.Monad
 
 -- | Promoted data type to track channel type at the type level.
 data Channel = RGB | BGR | Grayscale | HSV | YUV
@@ -175,29 +177,19 @@ getAt (V2 i j) m = do p <- rowPtr m i
 
 -- | Index into a matrix at (row, column) given by (V2 row column).
 -- | Setter
-setAt :: Storable (ElemT c e) => V2 Int -> Mat c e ->ElemT c e -> CV (Mat c e)
+setAt :: Storable (ElemT c e) => V2 Int -> Mat c e -> ElemT c e -> CV (Mat c e)
 setAt (V2 i j) m e = do p <- rowPtr m i
                         CV $ pokeElemOff p j e
                         return m
-
-type instance Index (CV (Mat c e)) = V2 Int
-type instance IxValue (CV (Mat c e)) = CV (ElemT c e)
-
-instance (Functor f, Storable (ElemT c e)) => Ixed f (CV (Mat c e)) where
-  ix i = ilens getter setter
-        where getter m = (i, getInternal m)
-              setter = setInternal
-              getInternal m = m >>= getAt i
-              setInternal m e = do  e' <- e
-                                    m' <- m
-                                    setAt i m' e'
 
 -- | Lens for indexed access into a Mat. The matrix and element are always
 -- in CV because getting and setting can't be done safely outside of
 -- a monad. This is equivalent to ix but a little easier to use
 -- because it's less polymorphic.
-pixel :: forall f c e. (Functor f, Storable (ElemT c e)) => V2 Int -> IndexedLensLike' (V2 Int) f (CV (Mat c e)) (CV (ElemT c e))
-pixel = ix
+pixel :: Storable (ElemT c e) => V2 Int -> Lens' (CV (Mat c e)) (CV (ElemT c e))
+pixel i = lens getter setter
+      where getter m = m >>= getAt i
+            setter m e = join $ setAt i <$> m <*> e
 
 -- | provides the 8/24/48/etc. neighborhood around a pixel (including the pixel
 -- itself). The first parameter is the max pixel distance from 
@@ -228,15 +220,11 @@ setNeighborhood s (V2 i j) m v = do rs <- rows m
 
 -- | Lens to the 8/24/48/etc. neighborhood of a pixel (including the pixel
 -- itself).
-neighborhood :: forall f c e. (Functor f, Storable (ElemT c e)) => Int -> V2 Int -> IndexedLensLike' (V2 Int) f (CV (Mat c e)) (CV (V.Vector (ElemT c e)))
-neighborhood s i = ilens getter setter
-                    where getter m = (i, getNInt m)
-                          setter = setNInt
-                          getNInt m = m >>= getNeighborhood s i
-                          setNInt m e = do e' <- e
-                                           m' <- m
-                                           setNeighborhood s i m' e'
 
+neighborhood :: Storable (ElemT c e) => Int -> V2 Int -> Lens' (CV (Mat c e)) (CV (V.Vector (ElemT c e)))
+neighborhood s i = lens getter setter
+                    where getter m = m >>= getNeighborhood s i
+                          setter m e = join $ setNeighborhood s i <$> m <*> e
 
 -- | Create a Vector (of Vectors)
 -- (provided for integration with linear)
@@ -296,21 +284,13 @@ promoting = iso promote force
 forcing :: Iso (MatExpr c e) (MatExpr c e) (CV (Mat c e)) (Mat c e)
 forcing = from promoting
 
--- | element-wise matrix addition
-(~+~) :: MatExpr c e -> MatExpr c e -> MatExpr c e
-m1 ~+~ m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_add` (extractExpr m2) 
-
--- | standard matrix addition, equivalent to (~+~)
+-- | standard matrix addition
 (.+.) :: MatExpr c e -> MatExpr c e -> MatExpr c e
-(.+.) = (~+~)
-
--- | This is **element**-wise matrix multiplication, not the usual
-(~*~) :: MatExpr c e -> MatExpr c e -> MatExpr c e
-m1 ~*~ m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_mult` (extractExpr m2) 
+m1 .+. m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_add` (extractExpr m2)
 
 -- | Normal matrix multiplication.
 (.*.) :: MatExpr c e -> MatExpr c e -> MatExpr c e
-(.*.) = undefined
+m1 .*. m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_mult` (extractExpr m2) 
 
 -- | Matrix left scaling
 (*.) :: Double -> MatExpr c e -> MatExpr c Double

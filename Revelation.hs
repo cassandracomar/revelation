@@ -4,7 +4,7 @@ module Revelation.Mat
 
 -- * Undocumented
 , module Revelation.Core
---, module Revelation.Video
+, module Revelation.Video
 , module Revelation.Color
 , module Revelation.UI 
 , module Revelation.Utils
@@ -12,7 +12,7 @@ module Revelation.Mat
 ) where
 
 import Revelation.Mat
---import Revelation.Video
+import Revelation.Video
 import Revelation.Color
 import Revelation.UI 
 import Revelation.Utils

@@ -5,9 +5,8 @@ module Revelation.Video (
 , imageDisplayWindow
 )where
 
-import OpenCV.Types
-import OpenCV.Consts
-import OpenCV.Funcs
+import OpenCV
+import Development.CPPUtils
 import Revelation.Mat
 import Revelation.Core
 import Foreign.Ptr
@@ -18,7 +17,7 @@ import Pipes
 type VideoCapture c e = Producer (Mat c e) CV ()
 
 cameraCapture :: Int -> VideoCapture c e
-cameraCapture d = liftCV (c'cv_create_VideoCapture1 $ fromIntegral d) >>= _capture
+cameraCapture d = liftCV (c'cv_create_VideoCapture1_0 $ fromIntegral d) >>= _capture
                      
 _capture :: Ptr C'VideoCapture -> VideoCapture c e
 _capture cap = lift unsafeCreateMat >>= loop cap
@@ -32,7 +31,7 @@ type Window c e = Consumer (Mat c e) CV ()
 
 imageDisplayWindow :: String -> Window c e
 imageDisplayWindow name = do cname <- liftCV $ toStdString name
-                             liftCV $ c'cv_namedWindow cname c'CV_WINDOW_NORMAL0
+                             liftCV $ c'cv_namedWindow (castPtr cname) c'CV_WINDOW_NORMAL0
                              forever $ do
                                mat <- await
-                               liftCV $ c'cv_imshow cname (extract mat)
+                               liftCV $ c'cv_imshow (castPtr cname) (extract mat)

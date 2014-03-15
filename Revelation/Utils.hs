@@ -6,9 +6,10 @@ import Revelation.Core
 import Control.Monad
 import Control.Lens
 
-indexP :: Pipe (Mat Grayscale Int) (Mat Grayscale Int) CV ()
-indexP = forever $ do 
-            m <- await
-            v <- lift $ return m ^. neighborhood 1 (V2 0 0)
-            liftCV $ print (show v)
-            yield m
+indexP :: V2 Int -> Pipe (Mat Grayscale Int) (Mat Grayscale Int) CV ()
+indexP i = forever $ do 
+              m <- await
+              m' <- lift $ return m & pixel i .~ return (V1 0)
+              v <- lift $ return m' ^. pixel i
+              liftCV $ print (show v)
+              yield m
