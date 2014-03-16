@@ -21,6 +21,19 @@ This library should build easily and relatively painlessly.
 
 Submit any issues you have building the library!
 
+Linking
+-----------
+
+Linking executables built using this library is a little painful. The reason isn't entirely clear to me, but for some reason, you can't link against the shared libopencv_c.so archive -- symbols are just never found. Linking instead against the static libopencv_c.a solves this problem, but cabal doesn't have a good story for that kind of linking. Using --whole-archive and -Bstatic as linker options allows ld to correctly link executables regardless of where cabal sticks them on the command line, but getting the details to work is tricky.
+
+If you need to link an executable against this library, include the following in your ghc-options field in your cabal file:
+
+    ghc-options: -pgml g++ "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lopencv_c" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+
+This allows the executable to correctly link. Execution will still require the opencv libs to be on the LD_LIBRARY_PATH so make sure that variable is set correctly as well.
+
+I'll update this with instructions for OS X and Windows as I test in those environments.
+
 A New Kind of Computer Vision Library
 -----------
 
