@@ -24,7 +24,6 @@ module Revelation.Mat (
 , InverseMethod(..), invert, invertBy
 , transpose
 , (.+.), (.*.), (.*), (*.)
-, (~+~), (~*~)
 ) where
 
 import Revelation.Core
@@ -78,7 +77,7 @@ instance CVElement (V1 Float) where
   cvElemType _ = c'CV_32FC1
 
 -- Int has a specified size, but it's not statically guaranteed
--- So instances are provided for the guaranteed fix width types
+-- So instances are provided for the guaranteed fixed width types
 -- Use fromIntegral to the correct width type.
 instance CVElement (V1 Int32) where
   cvElemType _ = c'CV_32SC1
@@ -184,8 +183,7 @@ setAt (V2 i j) m e = do p <- rowPtr m i
 
 -- | Lens for indexed access into a Mat. The matrix and element are always
 -- in CV because getting and setting can't be done safely outside of
--- a monad. This is equivalent to ix but a little easier to use
--- because it's less polymorphic.
+-- a monad.
 pixel :: Storable (ElemT c e) => V2 Int -> Lens' (CV (Mat c e)) (CV (ElemT c e))
 pixel i = lens getter setter
       where getter m = m >>= getAt i
@@ -214,13 +212,11 @@ setNeighborhood s (V2 i j) m v = do rs <- rows m
                                     where inds rs cs = V.fromList [V2 x y |  x <- [(i - s) .. (i + s)]
                                                                            , y <- [(j - s) .. (j + s)] 
                                                                            , x >= 0 && x < rs
-                                                                           , y >= 0 && y < cs
-                                                                           , not (x == i && y == i)]
+                                                                           , y >= 0 && y < cs]
                                           zipped rs cs = V.zip (inds rs cs) v
 
 -- | Lens to the 8/24/48/etc. neighborhood of a pixel (including the pixel
 -- itself).
-
 neighborhood :: Storable (ElemT c e) => Int -> V2 Int -> Lens' (CV (Mat c e)) (CV (V.Vector (ElemT c e)))
 neighborhood s i = lens getter setter
                     where getter m = m >>= getNeighborhood s i
