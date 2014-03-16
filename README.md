@@ -9,15 +9,16 @@ release of OpenCV.
 
 This is very much a WIP, and pull requests / issues / feature requests are very very welcome.
 
-The raw bindings have been integrated into OpenCV which you can find in my fork [here](https://github.com/arjuncomar/opencv.git).
+The raw bindings have been integrated into OpenCV which you can find in my fork [here](https://github.com/arjuncomar/opencv_contrib.git).
 Building that fork will install a package called opencv that will provide the raw bindings necessary for this package.
 
 Compilation / Installation
 ------------
 
-This project currently requires GHC 7.6 (though it might work with 7.4). This package requires opencv installed from 
-[my fork](https://github.com/arjuncomar/opencv). Let me know if you have any trouble building it.
-This library should build easily and relatively painlessly. 
+This project currently requires GHC 7.6 (though it might work with 7.4). This package requires opencv installed from
+[my fork](https://github.com/arjuncomar/opencv_contrib.git) -- follow the instructions on the readme to compile the
+library with the [main opencv tree](https://github.com/itseez/opencv.git). Let me know if you have 
+any trouble building it. This library should build easily and relatively painlessly. 
 
 Submit any issues you have building the library!
 
@@ -30,11 +31,13 @@ If you need to link an executable against this library, include the following in
 
     ghc-options: -pgml g++ "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lopencv_c" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
 
-This allows the executable to correctly link. Execution will still require the opencv libs to be on the LD_LIBRARY_PATH so make sure that variable is set correctly as well.
+This allows the executable to correctly link. Execution will still require the opencv libs to be on the LD_LIBRARY_PATH
+so make sure that variable is set correctly as well. If you have any issues with this process let me know and I'll
+help you through it.
 
 I'll update this with instructions for OS X and Windows as I test in those environments.
 
-A New Kind of Computer Vision Library
+Design Goals
 -----------
 
 This API is very much under development. The idea is to provide the major OpenCV functionality via Pipes. This works for a couple of
