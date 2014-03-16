@@ -22,7 +22,7 @@ library
                           , Revelation.Core
                           , Revelation.Utils
                           , Revelation.Video
-    ghc-options:            -pgml g++ 
+    ghc-options:            -pgml g++ -O2
     build-depends:          base >=4.6 && <4.7
                           , Cabal >=1.16
                           , vector >= 0.10
@@ -39,7 +39,7 @@ library
 
 executable Test
     main-is:                Main.hs
-    ghc-options:            -pgml g++ "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lopencv_c" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+    ghc-options:            -O2 -pgml g++ "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lopencv_c" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
     pkgconfig-depends:      opencv >= 3.0
     build-depends:          base >=4.6 && <4.7
                           , pipes >= 4.0
