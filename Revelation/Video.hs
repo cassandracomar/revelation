@@ -20,7 +20,7 @@ cameraCapture :: Int -> VideoCapture c e
 cameraCapture d = liftCV (c'cv_create_VideoCapture1_0 $ fromIntegral d) >>= _capture
                      
 _capture :: Ptr C'VideoCapture -> VideoCapture c e
-_capture cap = lift unsafeCreateMat >>= loop cap
+_capture cap = lift (return unsafeCreateMat) >>= loop cap
                     where
                       loop c mat = do
                         liftCV $ c'cv_VideoCapture_read c (extract mat)
