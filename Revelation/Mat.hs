@@ -19,8 +19,7 @@ module Revelation.Mat (
 , rows, cols
 , subMat
 , getAt, setAt
-, fromMat, toMat, asVector, asMat
-, asSingleVector
+, fromMat, toMat, asSingleVector
 , pixel, neighborhood
 , promote, force
 , promoting, forcing
@@ -192,11 +191,11 @@ pixel i = lens getter setter
 
 -- | provides the 8/24/48/etc. neighborhood around a pixel (including the pixel
 -- itself). The first parameter is the max pixel distance from 
-getNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Int -> V2 Int -> Mat c e -> CV (VS.Vector (ElemT c e))
+getNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Int -> V2 Int -> Mat c e -> CV (VS.Vector (VS.Vector (ElemT c e)))
 getNeighborhood s (V2 i j) m = do rs <- rows m
                                   cs <- cols m
                                   m' <- subMat m tl (br rs cs)
-                                  asSingleVector m'
+                                  fromMat m'
                                     where clampedLower k = if k < 0 then 0 else k
                                           clampedHigher b k = if k >= b then b else k
                                           tl = V2 (clampedLower $ i - s) (clampedLower $ j - s)
@@ -205,20 +204,19 @@ getNeighborhood s (V2 i j) m = do rs <- rows m
 -- | Sets the entire neighborhood for a pixel. This is a relatively
 -- inefficient function because we can't just write the entire vector at
 -- once and instead have to write each element individually.
-setNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), Storable (V2 Int, ElemT c e)) => Int -> V2 Int -> Mat c e -> VS.Vector (ElemT c e) -> CV (Mat c e)
+setNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), Storable (V2 Int, ElemT c e)) => Int -> V2 Int -> Mat c e -> VS.Vector (VS.Vector (ElemT c e)) -> CV (Mat c e)
 setNeighborhood s (V2 i j) m v = do rs <- rows m
                                     cs <- cols m
-                                    VS.forM_ (zipped rs cs) $ \(k, e) -> (return m) & pixel k .~ (return e)
+                                    VS.forM_ (inds rs cs) $ \k@(V2 x y) -> (return m) & pixel k .~ (return $ v VS.! x VS.! y)
                                     return m
                                     where inds rs cs = VS.fromList [V2 x y |  x <- [(i - s) .. (i + s)]
                                                                            , y <- [(j - s) .. (j + s)] 
                                                                            , x >= 0 && x < rs
                                                                            , y >= 0 && y < cs]
-                                          zipped rs cs = VS.zipWith (,) (inds rs cs) v
 
 -- | Lens to the 8/24/48/etc. neighborhood of a pixel (including the pixel
 -- itself).
-neighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), Storable (V2 Int, ElemT c e)) => Int -> V2 Int -> Lens' (CV (Mat c e)) (CV (VS.Vector (ElemT c e)))
+neighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), Storable (V2 Int, ElemT c e)) => Int -> V2 Int -> Lens' (CV (Mat c e)) (CV (VS.Vector (VS.Vector (ElemT c e))))
 neighborhood s i = lens getter setter
                     where getter m = m >>= getNeighborhood s i
                           setter m e = join $ setNeighborhood s i <$> m <*> e
@@ -243,14 +241,6 @@ toMat v = CV $ MkMat <$> VS.unsafeWith v makeMat
                     rs = VS.length v
                     cs = VS.length $ v VS.! 0
                     e = v VS.! 0 VS.! 0
-
--- | Isomorphism to view Mats as Storable Vectors and vice versa
-asVector :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => Iso (Mat c e) (CV (Mat c e)) (CV (VS.Vector (VS.Vector (ElemT c e)))) (VS.Vector (VS.Vector (ElemT c e)))
-asVector = iso fromMat toMat
-
--- | The flipped version
-asMat :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => Iso (VS.Vector (VS.Vector (ElemT c e))) (CV (VS.Vector (VS.Vector (ElemT c e)))) (CV (Mat c e)) (Mat c e) 
-asMat = from asVector
 
 -- | Create a single long Vector (lazily)
 asSingleVector :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Mat c e -> CV (VS.Vector (ElemT c e))
