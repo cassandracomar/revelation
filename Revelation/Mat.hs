@@ -204,7 +204,7 @@ getNeighborhood s (V2 i j) m = do rs <- rows m
 -- | Sets the entire neighborhood for a pixel. This is a relatively
 -- inefficient function because we can't just write the entire vector at
 -- once and instead have to write each element individually.
-setNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), Storable (V2 Int, ElemT c e)) => Int -> V2 Int -> Mat c e -> VS.Vector (VS.Vector (ElemT c e)) -> CV (Mat c e)
+setNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Int -> V2 Int -> Mat c e -> VS.Vector (VS.Vector (ElemT c e)) -> CV (Mat c e)
 setNeighborhood s (V2 i j) m v = do rs <- rows m
                                     cs <- cols m
                                     VS.forM_ (inds rs cs) $ \k@(V2 x y) -> (return m) & pixel k .~ (return $ v VS.! x VS.! y)
@@ -216,7 +216,7 @@ setNeighborhood s (V2 i j) m v = do rs <- rows m
 
 -- | Lens to the 8/24/48/etc. neighborhood of a pixel (including the pixel
 -- itself).
-neighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), Storable (V2 Int, ElemT c e)) => Int -> V2 Int -> Lens' (CV (Mat c e)) (CV (VS.Vector (VS.Vector (ElemT c e))))
+neighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Int -> V2 Int -> Lens' (CV (Mat c e)) (CV (VS.Vector (VS.Vector (ElemT c e))))
 neighborhood s i = lens getter setter
                     where getter m = m >>= getNeighborhood s i
                           setter m e = join $ setNeighborhood s i <$> m <*> e
