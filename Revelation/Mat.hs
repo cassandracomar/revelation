@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Revelation.Mat ( 
 -- ** Types
@@ -17,7 +18,8 @@ module Revelation.Mat (
 -- ** Functions
 , rows, cols
 , subMat
-, getAt, setAt, fromMat, asVector
+, getAt, setAt
+, fromMat, toMat, asVector
 , pixel, neighborhood
 , promote, force
 , promoting, forcing
@@ -31,7 +33,6 @@ import OpenCV
 import Foreign
 import Foreign.C
 import Linear 
-import qualified Data.Vector as V
 import qualified Data.Vector.Storable as VS
 import Control.Lens
 import Control.Applicative
@@ -110,9 +111,8 @@ instance CVElement (V3 Int8) where
 -- The witness can't be created automatically with GHC 7.6 because type
 -- families are open and not guaranteed to be injective.
 createMat :: CVElement (ElemT c e) => Int -> Int -> ElemT c e -> CV (Mat c e)
-createMat rs cs proxy = CV $ do
-                            m <- c'cv_create_Mat_typed (fromIntegral rs) (fromIntegral cs) (cvElemType proxy)
-                            return $ MkMat m
+createMat rs cs proxy = do m <- CV $ c'cv_create_Mat_typed (fromIntegral rs) (fromIntegral cs) (cvElemType proxy)
+                           return $ MkMat m
 
 -- | This return type potentially lies... use only if you're truly
 -- polymorphic in the type of the underlying matrix.
@@ -191,7 +191,7 @@ pixel i = lens getter setter
 
 -- | provides the 8/24/48/etc. neighborhood around a pixel (including the pixel
 -- itself). The first parameter is the max pixel distance from 
-getNeighborhood :: Storable (ElemT c e) => Int -> V2 Int -> Mat c e -> CV (V.Vector (ElemT c e))
+getNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Int -> V2 Int -> Mat c e -> CV (VS.Vector (ElemT c e))
 getNeighborhood s (V2 i j) m = do rs <- rows m
                                   cs <- cols m
                                   m' <- subMat m tl (br rs cs)
@@ -204,39 +204,49 @@ getNeighborhood s (V2 i j) m = do rs <- rows m
 -- | Sets the entire neighborhood for a pixel. This is a relatively
 -- inefficient function because we can't just write the entire vector at
 -- once and instead have to write each element individually.
-setNeighborhood :: Storable (ElemT c e) => Int -> V2 Int -> Mat c e -> V.Vector (ElemT c e) -> CV (Mat c e)
+setNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), Storable (V2 Int, ElemT c e)) => Int -> V2 Int -> Mat c e -> VS.Vector (ElemT c e) -> CV (Mat c e)
 setNeighborhood s (V2 i j) m v = do rs <- rows m
                                     cs <- cols m
-                                    V.forM_ (zipped rs cs) $ \(k, e) -> (return m) & pixel k .~ (return e)
+                                    VS.forM_ (zipped rs cs) $ \(k, e) -> (return m) & pixel k .~ (return e)
                                     return m
-                                    where inds rs cs = V.fromList [V2 x y |  x <- [(i - s) .. (i + s)]
+                                    where inds rs cs = VS.fromList [V2 x y |  x <- [(i - s) .. (i + s)]
                                                                            , y <- [(j - s) .. (j + s)] 
                                                                            , x >= 0 && x < rs
                                                                            , y >= 0 && y < cs]
-                                          zipped rs cs = V.zip (inds rs cs) v
+                                          zipped rs cs = VS.zipWith (,) (inds rs cs) v
 
 -- | Lens to the 8/24/48/etc. neighborhood of a pixel (including the pixel
 -- itself).
-neighborhood :: Storable (ElemT c e) => Int -> V2 Int -> Lens' (CV (Mat c e)) (CV (V.Vector (ElemT c e)))
+neighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), Storable (V2 Int, ElemT c e)) => Int -> V2 Int -> Lens' (CV (Mat c e)) (CV (VS.Vector (ElemT c e)))
 neighborhood s i = lens getter setter
                     where getter m = m >>= getNeighborhood s i
                           setter m e = join $ setNeighborhood s i <$> m <*> e
 
 -- | Create a Vector (of Vectors)
 -- (provided for integration with linear)
-fromMat :: Storable (ElemT c e) => Mat c e -> CV (V.Vector (V.Vector (ElemT c e)))
+fromMat :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Mat c e -> CV (VS.Vector (VS.Vector (ElemT c e)))
 fromMat m = CV $ do 
               rs <- runCV $ rows m
               cs <- runCV $ cols m
-              V.forM (V.fromList [0 .. (rs-1)]) $ \i -> do
+              VS.forM (VS.fromList [0 .. (rs-1)]) $ \i -> do
                 p <- runCV $ rowPtr m i
                 p' <- newForeignPtr_ p
-                return . V.convert $ VS.unsafeFromForeignPtr0 p' cs
+                return $ VS.unsafeFromForeignPtr0 p' cs
+
+-- | Turn a Vector (of Vectors) into a Mat
+-- This function lets you create a matrix intialized with the values from
+-- the Vector of vectors.
+toMat :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => VS.Vector (VS.Vector (ElemT c e)) -> CV (Mat c e)
+toMat v = CV $ MkMat <$> VS.unsafeWith v makeMat
+              where makeMat p = c'cv_create_Mat_with_data (fromIntegral rs) (fromIntegral cs) (cvElemType e) p 
+                    rs = VS.length v
+                    cs = VS.length $ v VS.! 0
+                    e = v VS.! 0 VS.! 0
 
 -- | Create a single long Vector (lazily)
-asVector :: Storable (ElemT c e) => Mat c e -> CV (V.Vector (ElemT c e))
+asVector :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Mat c e -> CV (VS.Vector (ElemT c e))
 asVector m = do v <- fromMat m 
-                return $ V.foldr (V.++) V.empty v
+                return $ VS.foldr (VS.++) VS.empty v
 
 -- | The decomposition method used to compute the inverse
 data InverseMethod = LU | Cholesky | SVD
