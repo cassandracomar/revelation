@@ -19,7 +19,8 @@ module Revelation.Mat (
 , rows, cols
 , subMat
 , getAt, setAt
-, fromMat, toMat, asVector
+, fromMat, toMat, asVector, asMat
+, asSingleVector
 , pixel, neighborhood
 , promote, force
 , promoting, forcing
@@ -195,7 +196,7 @@ getNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => I
 getNeighborhood s (V2 i j) m = do rs <- rows m
                                   cs <- cols m
                                   m' <- subMat m tl (br rs cs)
-                                  asVector m'
+                                  asSingleVector m'
                                     where clampedLower k = if k < 0 then 0 else k
                                           clampedHigher b k = if k >= b then b else k
                                           tl = V2 (clampedLower $ i - s) (clampedLower $ j - s)
@@ -243,10 +244,18 @@ toMat v = CV $ MkMat <$> VS.unsafeWith v makeMat
                     cs = VS.length $ v VS.! 0
                     e = v VS.! 0 VS.! 0
 
+-- | Isomorphism to view Mats as Storable Vectors and vice versa
+asVector :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => Iso (Mat c e) (CV (Mat c e)) (CV (VS.Vector (VS.Vector (ElemT c e)))) (VS.Vector (VS.Vector (ElemT c e)))
+asVector = iso fromMat toMat
+
+-- | The flipped version
+asMat :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => Iso (VS.Vector (VS.Vector (ElemT c e))) (CV (VS.Vector (VS.Vector (ElemT c e)))) (CV (Mat c e)) (Mat c e) 
+asMat = from asVector
+
 -- | Create a single long Vector (lazily)
-asVector :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Mat c e -> CV (VS.Vector (ElemT c e))
-asVector m = do v <- fromMat m 
-                return $ VS.foldr (VS.++) VS.empty v
+asSingleVector :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Mat c e -> CV (VS.Vector (ElemT c e))
+asSingleVector m = do v <- fromMat m 
+                      return $ VS.foldr (VS.++) VS.empty v
 
 -- | The decomposition method used to compute the inverse
 data InverseMethod = LU | Cholesky | SVD
