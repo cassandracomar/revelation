@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Revelation.Mat ( 
 -- ** Types
@@ -28,6 +28,7 @@ module Revelation.Mat (
 , (.+.), (.*.), (.*), (*.)
 ) where
 
+import Prelude hiding ((!!))
 import Revelation.Core
 import OpenCV
 import Foreign
@@ -207,12 +208,13 @@ getNeighborhood s (V2 i j) m = do rs <- rows m
 setNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Int -> V2 Int -> Mat c e -> VS.Vector (VS.Vector (ElemT c e)) -> CV (Mat c e)
 setNeighborhood s (V2 i j) m v = do rs <- rows m
                                     cs <- cols m
-                                    VS.forM_ (inds rs cs) $ \k@(V2 x y) -> (return m) & pixel k .~ (return $ v VS.! x VS.! y)
+                                    VS.forM_ (inds rs cs) $ \k -> (return m) & pixel k .~ (return $ v !! k)
                                     return m
-                                    where inds rs cs = VS.fromList [V2 x y |  x <- [(i - s) .. (i + s)]
+                                    where inds rs cs = VS.fromList [V2 x y | x <- [(i - s) .. (i + s)]
                                                                            , y <- [(j - s) .. (j + s)] 
                                                                            , x >= 0 && x < rs
                                                                            , y >= 0 && y < cs]
+                                          v' !! (V2 i' j') = v' VS.! i' VS.! j'
 
 -- | Lens to the 8/24/48/etc. neighborhood of a pixel (including the pixel
 -- itself).
