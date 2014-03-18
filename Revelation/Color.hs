@@ -48,7 +48,7 @@ convertColorP = forever $ do
                   yield m'
 
 convertColor :: Convertable c c' => Mat c e -> CV (Mat c' e)
-convertColor m = do m'  <- return unsafeCreateMat
+convertColor m = do let m' = unsafeCreateMat
                     m'' <- clone m'
                     CV $ c'cv_cvtColor (extract m) (extract m'') (cvtValue m m'') 0
-                    return m'
+                    return m''
