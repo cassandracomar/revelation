@@ -160,7 +160,7 @@ rowPtr m i = castPtr $ c'cv_Mat_ptr_index (extract m) (fromIntegral i)
 -- | First parameter is top left, second parameter is bottom right.
 -- The submatrix given by opencv is still tied to the underlying matrix.
 -- Cloning the matrix fixes this issue, and unsafePerformIO works because
--- this API does not mutate the new matrix.
+-- this API does not mutate the new (or old) matrix.
 subMat :: Mat c e -> V2 Int -> V2 Int -> Mat c e
 subMat m (V2 i j) (V2 k l) = MkMat . S.unsafePerformIO $ c'cv_Mat_clone m''
                               where
@@ -169,6 +169,8 @@ subMat m (V2 i j) (V2 k l) = MkMat . S.unsafePerformIO $ c'cv_Mat_clone m''
 
 -- | Index into a matrix at (row, column) given by (V2 row column).
 -- | Getter
+-- The matrices exposed by this API are immutable so unsafePerformIO is
+-- truly safe in this case.
 getAt :: Storable (ElemT c e) => V2 Int -> Mat c e -> ElemT c e
 getAt (V2 i j) m = S.unsafePerformIO $ peekElemOff (rowPtr m i) j
 
@@ -178,6 +180,10 @@ getAt (V2 i j) m = S.unsafePerformIO $ peekElemOff (rowPtr m i) j
 -- It's safe to use because a copy of the underlying data is made
 -- before setting the pixel value. But until rewrite rules are in place
 -- to eliminate unnecessary copying, this remains an inefficient approach.
+-- We'd in fact prefer if the underlying platform only executed this code
+-- once for any given set of arguments and never bothered to re-execute
+-- this method (instead caching the result), but of course, that can't
+-- be guaranteed.
 setAt :: Storable (ElemT c e) => V2 Int -> Mat c e -> ElemT c e -> Mat c e
 setAt (V2 i j) m e = S.unsafePerformIO $ do 
                         m' <- runCV $ clone m
@@ -201,6 +207,9 @@ getNeighborhood s (V2 i j) m = subMat m tl (br rs cs) ^. asVector
                                           rs = rows m
                                           cs = cols m
 
+-- Convenience function to index a nested vector by a Linear.V2. It
+-- simplifies some code in this module and makes a whole lot of stuff
+-- easier to read.
 (!!!) :: (Storable (VS.Vector a), Storable a) => VS.Vector (VS.Vector a) -> V2 Int -> a
 v' !!! (V2 i' j') = v' VS.! i' VS.! j'
 
@@ -265,15 +274,15 @@ inverseMethod Cholesky = c'CV_DECOMP_CHOLESKY0
 inverseMethod SVD = c'CV_DECOMP_SVD0
 
 -- | Inverts the given matrix. Uses SVD to guarantee that *something* is
--- always returned. The matrix provided is guaranteed to at least be a
--- pseudo-inverse (left or right). Gives a true inverse when the matrix
--- is square and non-singular.
+-- | always returned. The matrix provided is guaranteed to at least be a
+-- | pseudo-inverse (left or right). Gives a true inverse when the matrix
+-- | is square and non-singular.
 invert :: MatExpr c e -> MatExpr c e
 invert = invertBy SVD
 
 -- | Inverts the given matrix with the provided method. This function is
--- partial if the method passed is not SVD *and* a singular or non-square
--- matrix is passed in.
+-- | partial if the method passed is not SVD *and* a singular or non-square
+-- | matrix is passed in.
 invertBy :: InverseMethod -> MatExpr c e -> MatExpr c e
 invertBy im m = MkMatExpr $ c'cv_Mat_inv_mat (extractExpr m) (inverseMethod im)
 
@@ -288,7 +297,7 @@ force m = MkMat . S.unsafePerformIO $ c'force (extractExpr m) >>= c'cv_Mat_clone
 promote :: Mat c e -> MatExpr c e
 promote = MkMatExpr . c'promote . extract
 
--- / Convenience Iso for promotion 
+-- | Convenience Iso for promotion 
 promoting :: Iso (Mat c e) (Mat c e) (MatExpr c e) (MatExpr c e)
 promoting = iso promote force
 
