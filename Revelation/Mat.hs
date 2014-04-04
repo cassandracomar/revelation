@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NoImplicitPrelude #-}
 
 module Revelation.Mat ( 
 -- ** Types
@@ -28,7 +27,6 @@ module Revelation.Mat (
 , (.+.), (.*.), (.*), (*.)
 ) where
 
-import Prelude hiding ((!!))
 import Revelation.Core
 import OpenCV
 import Foreign
@@ -43,17 +41,16 @@ import Control.Monad
 data Channel = RGB | BGR | Grayscale | HSV | YUV
 
 -- | Matrix type - type parameter c must have kind Channel.
--- Use extract to get at the underlying C'Mat ptr.
 newtype Mat (c :: Channel) elem = MkMat { extract :: Ptr C'Mat }
 
 -- | Lazily evaluated matrix expressions. OpenCV uses this type to perform
--- some optimizations on matrix operations, so it's preserved. Usage of
--- this type is generally referentially transparent because there's no way
--- to inspect its value, and it's used only for mathematical operations.
--- However, expressions are **unchecked**! That means you'll get a runtime
--- error if you attempt to add or multiply matrices of the wrong type.
--- This would be tracked in the types, but it's currently very difficult to
--- do.
+-- | some optimizations on matrix operations, so it's preserved. Usage of
+-- | this type is generally referentially transparent because there's no way
+-- | to inspect its value, and it's used only for mathematical operations.
+-- | However, expressions are **unchecked**! That means you'll get a runtime
+-- | error if you attempt to add or multiply matrices of the wrong type.
+-- | This would be tracked in the types, but it's currently very difficult to
+-- | do. Once GHC 7.8 is released, I'll update this.
 newtype MatExpr (c :: Channel) elem = MkMatExpr { extractExpr :: Ptr C'MatExpr }
 
 -- | Type synonym family to deal with the storage format for matrices
