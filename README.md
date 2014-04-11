@@ -15,8 +15,7 @@ Building that fork will install a package called opencv that will provide the ra
 Compilation / Installation
 ------------
 
-This project currently requires GHC 7.6 (though it might work with 7.4). This package requires opencv installed from
-[my fork](https://github.com/arjuncomar/opencv_contrib.git) -- follow the instructions on the readme to compile the
+This project currently requires GHC 7.8. This package requires opencv installed from [my fork](https://github.com/arjuncomar/opencv_contrib.git) -- follow the instructions on the readme to compile the
 library with the [main opencv tree](https://github.com/itseez/opencv.git). Let me know if you have 
 any trouble building it. This library should build easily and relatively painlessly. 
 
