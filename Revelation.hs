@@ -8,7 +8,8 @@ module Revelation.Mat
 , module Revelation.Color
 , module Revelation.UI 
 , module Revelation.Utils
-, module X
+, module Revelation.Point
+, module Pipes
 ) where
 
 import Revelation.Mat
@@ -17,4 +18,6 @@ import Revelation.Color
 import Revelation.UI 
 import Revelation.Utils
 import Revelation.Core (CV(runCV)) 
-import Pipes as X
+import Revelation.Point
+
+import Pipes
