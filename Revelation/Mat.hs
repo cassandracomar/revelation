@@ -57,12 +57,12 @@ newtype MatExpr (c :: Channel) elem = MkMatExpr { extractExpr :: Ptr C'MatExpr }
 -- of various channels. If you need to pass something of this type
 -- to a constructor, it's always safe to pass (undefined :: ElemT c e)
 -- with c and e filled in as appropriate.
-type family ElemT (c :: Channel) :: * -> *
-type instance ElemT Grayscale = V1
-type instance ElemT RGB = V3 
-type instance ElemT BGR = V3
-type instance ElemT HSV = V3
-type instance ElemT YUV = V3
+type family ElemT (c :: Channel) :: * -> * where
+  ElemT Grayscale = V1
+  ElemT RGB = V3 
+  ElemT BGR = V3
+  ElemT HSV = V3
+  ElemT YUV = V3
 
 -- | Typeclass to convert the provided element type to an OpenCV element
 -- type.
