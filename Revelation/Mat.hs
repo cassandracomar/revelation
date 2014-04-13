@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Revelation.Mat ( 
 -- ** Types
@@ -35,6 +36,7 @@ import qualified Data.Vector.Storable as VS
 import Control.Lens
 import qualified System.IO.Unsafe as S (unsafePerformIO)
 import Control.Applicative
+import Data.Proxy
 
 -- | Promoted data type to track channel type at the type level.
 data Channel = RGB | BGR | Grayscale | HSV | YUV
@@ -53,9 +55,7 @@ newtype Mat (c :: Channel) elem = MkMat { extract :: Ptr C'Mat }
 newtype MatExpr (c :: Channel) elem = MkMatExpr { extractExpr :: Ptr C'MatExpr }
 
 -- | Type synonym family to deal with the storage format for matrices
--- of various channels. If you need to pass something of this type
--- to a constructor, it's always safe to pass (undefined :: ElemT c e)
--- with c and e filled in as appropriate.
+-- | of various channels. 
 type family ElemT (c :: Channel) :: * -> * where
   ElemT Grayscale = V1
   ElemT RGB = V3 
@@ -64,9 +64,9 @@ type family ElemT (c :: Channel) :: * -> * where
   ElemT YUV = V3
 
 -- | Typeclass to convert the provided element type to an OpenCV element
--- type.
+-- | type.
 class CVElement f where
-  cvElemType :: f -> CInt
+  cvElemType :: Proxy f -> CInt
 
 instance CVElement (V1 Double) where
   cvElemType _ = c'CV_64FC1
@@ -109,12 +109,11 @@ instance CVElement (V3 Word8) where
 
 -- | A safe matrix creation function. This one gives you exactly what you ask
 -- | for, and guarantees that a matrix of the appropriate type and size is 
--- | allocated. The ElemT c e parameter is safely passed as undefined because
--- | it's value is never inspected. It's needed as a type witness.
--- | The witness can't be created automatically with GHC 7.6 because type
--- | families are open and not guaranteed to be injective.
-createMat :: CVElement (ElemT c e) => Int -> Int -> ElemT c e -> Mat c e
-createMat rs cs proxy = MkMat $ c'cv_create_Mat_typed (fromIntegral rs) (fromIntegral cs) (cvElemType proxy)
+-- | allocated. 
+createMat :: forall c e. CVElement (ElemT c e) => Int -> Int -> Mat c e
+createMat rs cs = MkMat $ c'cv_create_Mat_typed (fromIntegral rs) 
+                                                (fromIntegral cs)
+                                                $ cvElemType (Proxy :: Proxy (ElemT c e))
 
 -- | This return type potentially lies... use only if you're truly
 -- | polymorphic in the type of the underlying matrix.
@@ -129,16 +128,22 @@ clone :: Mat c e -> CV (Mat c e)
 clone m = CV $ MkMat <$> c'cv_Mat_clone (extract m)
 
 -- | Allocates a square identity matrix of size r x r
-createIdentity :: CVElement (ElemT c e) => Int -> ElemT c e -> Mat c e
-createIdentity r proxy = MkMat $ c'cv_create_identity (fromIntegral r) (fromIntegral r) (cvElemType proxy)
+createIdentity :: forall c e. CVElement (ElemT c e) => Int -> Mat c e
+createIdentity r = MkMat $ c'cv_create_identity (fromIntegral r) 
+                                                (fromIntegral r)
+                                                $ cvElemType (Proxy :: Proxy (ElemT c e))
    
 -- | Allocates a matrix of the requested size and fills it with ones.
-ones :: CVElement (ElemT c e) => Int -> Int -> ElemT c e -> Mat c e
-ones rs cs proxy = MkMat $ c'cv_create_ones (fromIntegral rs) (fromIntegral cs) (cvElemType proxy)
+ones :: forall c e. CVElement (ElemT c e) => Int -> Int -> Mat c e
+ones rs cs = MkMat $ c'cv_create_ones (fromIntegral rs) 
+                                      (fromIntegral cs) 
+                                      $ cvElemType (Proxy :: Proxy (ElemT c e))
 
 -- | Allocates a matrix of the requested size and fills it with zeroes.
-zeros :: CVElement (ElemT c e) => Int -> Int -> ElemT c e -> Mat c e
-zeros rs cs proxy = MkMat $ c'cv_create_zeros (fromIntegral rs) (fromIntegral cs) (cvElemType proxy)
+zeros :: forall c e. CVElement (ElemT c e) => Int -> Int -> Mat c e
+zeros rs cs = MkMat $ c'cv_create_zeros (fromIntegral rs) 
+                                        (fromIntegral cs) 
+                                        $ cvElemType (Proxy :: Proxy (ElemT c e))
 
 -- | Extract the number of rows in the provide matrix (equivalent to field
 -- | accessor rows on the C++ side) 
@@ -249,12 +254,11 @@ fromMat m = S.unsafePerformIO $ do
 -- | the Vector of vectors.
 -- The Mat created this way is safe from mutation and is always equivalent
 -- to the Storable Vector passed in.
-toMat :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => VS.Vector (VS.Vector (ElemT c e)) -> Mat c e
+toMat :: forall c e. (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => VS.Vector (VS.Vector (ElemT c e)) -> Mat c e
 toMat v = MkMat . S.unsafePerformIO $ VS.unsafeWith v (return . makeMat)
-              where makeMat p = c'cv_create_Mat_with_data (fromIntegral rs) (fromIntegral cs) (cvElemType e) p 
+              where makeMat p = c'cv_create_Mat_with_data (fromIntegral rs) (fromIntegral cs) (cvElemType (Proxy :: Proxy (ElemT c e))) p 
                     rs = VS.length v
                     cs = VS.length $ v VS.! 0
-                    e = v !!! (V2 0 0)
 
 -- | Convenience Iso to convert Mats to and from Storable Vectors.
 asVector :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => Iso' (Mat c e) (VS.Vector (VS.Vector (ElemT c e)))
