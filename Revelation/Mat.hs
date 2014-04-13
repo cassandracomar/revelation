@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Revelation.Mat ( 
 -- ** Types
