@@ -37,12 +37,13 @@ import Control.Lens
 import qualified System.IO.Unsafe as S (unsafePerformIO)
 import Control.Applicative
 import Data.Proxy
+import GHC.TypeLits
 
 -- | Promoted data type to track channel type at the type level.
 data Channel = RGB | BGR | Grayscale | HSV | YUV
 
 -- | Matrix type - type parameter c must have kind Channel.
-newtype Mat (c :: Channel) elem = MkMat { extract :: Ptr C'Mat }
+newtype Mat (rs :: Nat) (cs :: Nat) (c :: Channel) elem = MkMat { extract :: Ptr C'Mat }
 
 -- | Lazily evaluated matrix expressions. OpenCV uses this type to perform
 -- | some optimizations on matrix operations, so it's preserved. Usage of
@@ -52,7 +53,7 @@ newtype Mat (c :: Channel) elem = MkMat { extract :: Ptr C'Mat }
 -- | error if you attempt to add or multiply matrices of the wrong type.
 -- | This would be tracked in the types, but it's currently very difficult to
 -- | do. Once GHC 7.8 is released, I'll update this.
-newtype MatExpr (c :: Channel) elem = MkMatExpr { extractExpr :: Ptr C'MatExpr }
+newtype MatExpr (rs :: Nat) (cs :: Nat) (c :: Channel) elem = MkMatExpr { extractExpr :: Ptr C'MatExpr }
 
 -- | Type synonym family to deal with the storage format for matrices
 -- | of various channels. 
@@ -110,54 +111,53 @@ instance CVElement (V3 Word8) where
 -- | A safe matrix creation function. This one gives you exactly what you ask
 -- | for, and guarantees that a matrix of the appropriate type and size is 
 -- | allocated. 
-createMat :: forall c e. CVElement (ElemT c e) => Int -> Int -> Mat c e
-createMat rs cs = MkMat $ c'cv_create_Mat_typed (fromIntegral rs) 
-                                                (fromIntegral cs)
-                                                $ cvElemType (Proxy :: Proxy (ElemT c e))
+createMat :: forall rs cs c e. (KnownNat rs, KnownNat cs, CVElement (ElemT c e)) => Mat m n c e
+createMat = MkMat $ c'cv_create_Mat_typed (fromIntegral . natVal $ (Proxy :: Proxy rs)) 
+                                          (fromIntegral . natVal $ (Proxy :: Proxy cs))
+                                          $ cvElemType (Proxy :: Proxy (ElemT c e))
 
 -- | This return type potentially lies... use only if you're truly
 -- | polymorphic in the type of the underlying matrix.
 -- | i.e. if you're wanting any old mat to pass to an opencv function
 -- | that will correctly intialize it for you.
-unsafeCreateMat :: Mat c e
+unsafeCreateMat :: Mat m n c e
 unsafeCreateMat = MkMat $ c'cv_create_Mat 
 
 -- | Clones the matrix, copying the underlying data.
 -- | This does a deep copy.
-clone :: Mat c e -> CV (Mat c e)
+clone :: Mat m n c e -> CV (Mat m n c e)
 clone m = CV $ MkMat <$> c'cv_Mat_clone (extract m)
 
 -- | Allocates a square identity matrix of size r x r
-createIdentity :: forall c e. CVElement (ElemT c e) => Int -> Mat c e
-createIdentity r = MkMat $ c'cv_create_identity (fromIntegral r) 
-                                                (fromIntegral r)
-                                                $ cvElemType (Proxy :: Proxy (ElemT c e))
+createIdentity :: forall rs c e. (KnownNat rs, CVElement (ElemT c e)) => Mat rs rs c e
+createIdentity = MkMat $ c'cv_create_identity r r $ cvElemType (Proxy :: Proxy (ElemT c e))
+                  where r = fromIntegral . natVal $ (Proxy :: Proxy rs)
    
 -- | Allocates a matrix of the requested size and fills it with ones.
-ones :: forall c e. CVElement (ElemT c e) => Int -> Int -> Mat c e
-ones rs cs = MkMat $ c'cv_create_ones (fromIntegral rs) 
-                                      (fromIntegral cs) 
-                                      $ cvElemType (Proxy :: Proxy (ElemT c e))
+ones :: forall rs cs c e. (KnownNat rs, KnownNat cs, CVElement (ElemT c e)) => Mat m n c e
+ones = MkMat $ c'cv_create_ones (fromIntegral . natVal $ (Proxy :: Proxy rs)) 
+                                (fromIntegral . natVal $ (Proxy :: Proxy cs))
+                                $ cvElemType (Proxy :: Proxy (ElemT c e))
 
 -- | Allocates a matrix of the requested size and fills it with zeroes.
-zeros :: forall c e. CVElement (ElemT c e) => Int -> Int -> Mat c e
-zeros rs cs = MkMat $ c'cv_create_zeros (fromIntegral rs) 
-                                        (fromIntegral cs) 
-                                        $ cvElemType (Proxy :: Proxy (ElemT c e))
+zeros :: forall rs cs c e. (KnownNat rs, KnownNat cs, CVElement (ElemT c e)) => Mat m n c e
+zeros = MkMat $ c'cv_create_zeros (fromIntegral . natVal $ (Proxy :: Proxy rs)) 
+                                  (fromIntegral . natVal $ (Proxy :: Proxy cs))
+                                  $ cvElemType (Proxy :: Proxy (ElemT c e))
 
 -- | Extract the number of rows in the provide matrix (equivalent to field
 -- | accessor rows on the C++ side) 
-rows :: Integral a => Mat c e -> a
+rows :: Integral a => Mat m n c e -> a
 rows m = fromIntegral $ c'cv_Mat_rows (extract m)
 
 -- | Extract the number of rows in the provide matrix (equivalent to field
 -- | accessor cols on the C++ side) 
-cols :: Integral a => Mat c e -> a
+cols :: Integral a => Mat m n c e -> a
 cols m = fromIntegral $ c'cv_Mat_cols (extract m)
 
 -- | Extracts a pointer to a given row, and returns a correctly typed
 -- | C Array. 
-rowPtr :: Storable (ElemT c e) => Mat c e -> Int -> Ptr (ElemT c e)
+rowPtr :: Storable (ElemT c e) => Mat m n c e -> Int -> Ptr (ElemT c e)
 rowPtr m i = castPtr $ c'cv_Mat_ptr_index (extract m) (fromIntegral i)
 
 -- | Extracts a sub matrix from a given matrix.
@@ -165,7 +165,7 @@ rowPtr m i = castPtr $ c'cv_Mat_ptr_index (extract m) (fromIntegral i)
 -- The submatrix given by opencv is still tied to the underlying matrix.
 -- Cloning the matrix fixes this issue, and unsafePerformIO works because
 -- this API does not mutate the new (or old) matrix.
-subMat :: Mat c e -> V2 Int -> V2 Int -> Mat c e
+subMat :: Mat m n c e -> V2 Int -> V2 Int -> Mat m n c e
 subMat m (V2 i j) (V2 k l) = MkMat . S.unsafePerformIO $ c'cv_Mat_clone m''
                               where
                                 m' = c'cv_Mat_getRowRange (extract m) (fromIntegral i) (fromIntegral k)
@@ -175,7 +175,7 @@ subMat m (V2 i j) (V2 k l) = MkMat . S.unsafePerformIO $ c'cv_Mat_clone m''
 -- | Getter
 -- The matrices exposed by this API are immutable so unsafePerformIO is
 -- truly safe in this case.
-getAt :: Storable (ElemT c e) => V2 Int -> Mat c e -> ElemT c e
+getAt :: Storable (ElemT c e) => V2 Int -> Mat m n c e -> ElemT c e
 getAt (V2 i j) m = S.unsafePerformIO $ peekElemOff (rowPtr m i) j
 
 -- | Index into a matrix at (row, column) given by (V2 row column).
@@ -188,7 +188,7 @@ getAt (V2 i j) m = S.unsafePerformIO $ peekElemOff (rowPtr m i) j
 -- once for any given set of arguments and never bothered to re-execute
 -- this method (instead caching the result), but of course, that can't
 -- be guaranteed.
-setAt :: Storable (ElemT c e) => V2 Int -> Mat c e -> ElemT c e -> Mat c e
+setAt :: Storable (ElemT c e) => V2 Int -> Mat m n c e -> ElemT c e -> Mat m n c e
 setAt (V2 i j) m e = S.unsafePerformIO $ do 
                         m' <- runCV $ clone m
                         pokeElemOff (rowPtr m' i) j e
@@ -197,12 +197,12 @@ setAt (V2 i j) m e = S.unsafePerformIO $ do
 -- | Lens for indexed access into a Mat. The matrix and element are always
 -- | in CV because getting and setting can't be done safely outside of
 -- | a monad.
-pixel :: Storable (ElemT c e) => V2 Int -> Lens' (Mat c e) (ElemT c e)
+pixel :: Storable (ElemT c e) => V2 Int -> Lens' (Mat m n c e) (ElemT c e)
 pixel i = lens (getAt i) (setAt i)
 
 -- | provides the 8/24/48/etc. neighborhood around a pixel (including the pixel
 -- itself). The first parameter is the max pixel distance from 
-getNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => Int -> V2 Int -> Mat c e -> VS.Vector (VS.Vector (ElemT c e))
+getNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => Int -> V2 Int -> Mat m n c e -> VS.Vector (VS.Vector (ElemT c e))
 getNeighborhood s (V2 i j) m = subMat m tl (br rs cs) ^. asVector
                                     where clampedLower k = if k < 0 then 0 else k
                                           clampedHigher b k = if k >= b then b else k
@@ -222,7 +222,7 @@ v' !!! (V2 i' j') = v' VS.! i' VS.! j'
 -- | once and instead have to write each element individually. It's now
 -- | triply inefficient because the matrix is deep copied for every pixel
 -- | set.
-setNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Int -> V2 Int -> Mat c e -> VS.Vector (VS.Vector (ElemT c e)) -> Mat c e
+setNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Int -> V2 Int -> Mat m n c e -> VS.Vector (VS.Vector (ElemT c e)) -> Mat m n c e
 setNeighborhood s (V2 i j) m v = VS.foldl' (\m' k -> m' & pixel k .~ v !!! k) m inds  
                                     where inds = VS.fromList [V2 x y | x <- [(i - s) .. (i + s)]
                                                                            , y <- [(j - s) .. (j + s)] 
@@ -231,7 +231,7 @@ setNeighborhood s (V2 i j) m v = VS.foldl' (\m' k -> m' & pixel k .~ v !!! k) m 
 
 -- | Lens to the 8/24/48/etc. neighborhood of a pixel (including the pixel
 -- | itself).
-neighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => Int -> V2 Int -> Lens' (Mat c e) (VS.Vector (VS.Vector (ElemT c e)))
+neighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => Int -> V2 Int -> Lens' (Mat m n c e) (VS.Vector (VS.Vector (ElemT c e)))
 neighborhood s i = lens (getNeighborhood s i) (setNeighborhood s i)
 
 -- | Create a Vector (of Vectors)
@@ -240,7 +240,7 @@ neighborhood s i = lens (getNeighborhood s i) (setNeighborhood s i)
 -- suffers no mutations. There's also a performance advantage here since
 -- we don't want to repeatedly run this function, once is always enough on
 -- any given input.
-fromMat :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Mat c e -> VS.Vector (VS.Vector (ElemT c e))
+fromMat :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Mat m n c e -> VS.Vector (VS.Vector (ElemT c e))
 fromMat m = S.unsafePerformIO $ do
                     let rs = rows m
                     let cs = cols m
@@ -254,18 +254,18 @@ fromMat m = S.unsafePerformIO $ do
 -- | the Vector of vectors.
 -- The Mat created this way is safe from mutation and is always equivalent
 -- to the Storable Vector passed in.
-toMat :: forall c e. (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => VS.Vector (VS.Vector (ElemT c e)) -> Mat c e
+toMat :: forall rs cs c e. (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => VS.Vector (VS.Vector (ElemT c e)) -> Mat m n c e
 toMat v = MkMat . S.unsafePerformIO $ VS.unsafeWith v (return . makeMat)
               where makeMat p = c'cv_create_Mat_with_data (fromIntegral rs) (fromIntegral cs) (cvElemType (Proxy :: Proxy (ElemT c e))) p 
                     rs = VS.length v
                     cs = VS.length $ v VS.! 0
 
 -- | Convenience Iso to convert Mats to and from Storable Vectors.
-asVector :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => Iso' (Mat c e) (VS.Vector (VS.Vector (ElemT c e)))
+asVector :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => Iso' (Mat m n c e) (VS.Vector (VS.Vector (ElemT c e)))
 asVector = iso fromMat toMat
 
 -- | Create a single long Vector (lazily)
-asSingleVector :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Mat c e -> VS.Vector (ElemT c e)
+asSingleVector :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e))) => Mat m n c e -> VS.Vector (ElemT c e)
 asSingleVector m = VS.foldr (VS.++) VS.empty $ fromMat m 
 
 -- | The decomposition method used to compute the inverse
@@ -280,42 +280,44 @@ inverseMethod SVD = c'CV_DECOMP_SVD0
 -- | always returned. The matrix provided is guaranteed to at least be a
 -- | pseudo-inverse (left or right). Gives a true inverse when the matrix
 -- | is square and non-singular.
-invert :: MatExpr c e -> MatExpr c e
+invert :: MatExpr m n c e -> MatExpr m n c e
 invert = invertBy SVD
 
 -- | Inverts the given matrix with the provided method. This function is
 -- | partial if the method passed is not SVD *and* a singular or non-square
 -- | matrix is passed in.
-invertBy :: InverseMethod -> MatExpr c e -> MatExpr c e
+invertBy :: InverseMethod -> MatExpr m n c e -> MatExpr m n c e
 invertBy im m = MkMatExpr $ c'cv_Mat_inv_mat (extractExpr m) (inverseMethod im)
 
-transpose :: MatExpr c e -> MatExpr c e
+transpose :: MatExpr m n c e -> MatExpr m n c e
 transpose = MkMatExpr . c'cv_Mat_transpose_mat . extractExpr
 
 -- | Forces the evaluation of an accumulated Matrix Expression.
-force :: MatExpr c e -> Mat c e
+force :: MatExpr m n c e -> Mat m n c e
 force m = MkMat . S.unsafePerformIO $ c'force (extractExpr m) >>= c'cv_Mat_clone
 
 -- | Promotes a matrix to a matrix expression. Think (\m -> (\() -> m)).
-promote :: Mat c e -> MatExpr c e
+promote :: Mat m n c e -> MatExpr m n c e
 promote = MkMatExpr . c'promote . extract
 
 -- | Convenience Iso for promotion 
-promoting :: Iso (Mat c e) (Mat c e) (MatExpr c e) (MatExpr c e)
+promoting :: Iso (Mat m n c e) (Mat m n c e) (MatExpr m n c e) (MatExpr m n c e)
 promoting = iso promote force
 
 -- | standard matrix addition
-(.+.) :: MatExpr c e -> MatExpr c e -> MatExpr c e
+(.+.) :: MatExpr m n c e -> MatExpr m n c e -> MatExpr m n c e
 m1 .+. m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_add` (extractExpr m2)
 
 -- | Normal matrix multiplication.
-(.*.) :: MatExpr c e -> MatExpr c e -> MatExpr c e
+(.*.) :: MatExpr m n c e -> MatExpr n p c e -> MatExpr m p c e
 m1 .*. m2 = MkMatExpr $ (extractExpr m1) `c'cv_Mat_mult` (extractExpr m2) 
 
 -- | Matrix left scaling
-(*.) :: Double -> MatExpr c e -> MatExpr c Double
+-- | Forces the element type to Double because of how it's implemented in
+-- | OpenCV.
+(*.) :: Double -> MatExpr m n c e -> MatExpr m n c Double
 a *. m = MkMatExpr $ (extractExpr m) `c'cv_Mat_scale` (realToFrac a)
 
 -- | Matrix right scaling
-(.*) :: MatExpr c e -> Double -> MatExpr c Double
+(.*) :: MatExpr m n c e -> Double -> MatExpr m n c Double
 m .* a = MkMatExpr $ (extractExpr m) `c'cv_Mat_scale` (realToFrac a)

@@ -14,12 +14,12 @@ import Foreign.Ptr
 import Control.Monad
 import Pipes
 
-type VideoCapture c e = Producer (Mat c e) CV ()
+type VideoCapture m n c e = Producer (Mat m n c e) CV ()
 
-cameraCapture :: Int -> VideoCapture c e
+cameraCapture :: Int -> VideoCapture m n c e
 cameraCapture d = liftCV (c'cv_create_VideoCapture1_0 $ fromIntegral d) >>= _capture
                      
-_capture :: Ptr C'VideoCapture -> VideoCapture c e
+_capture :: Ptr C'VideoCapture -> VideoCapture m n c e
 _capture cap = lift (return unsafeCreateMat) >>= loop cap
                     where
                       loop c mat = do
@@ -27,9 +27,9 @@ _capture cap = lift (return unsafeCreateMat) >>= loop cap
                         yield mat
                         loop cap mat
 
-type Window c e = Consumer (Mat c e) CV ()
+type Window m n c e = Consumer (Mat m n c e) CV ()
 
-imageDisplayWindow :: String -> Window c e
+imageDisplayWindow :: String -> Window m n c e
 imageDisplayWindow name = do cname <- liftCV $ toStdString name
                              liftCV $ c'cv_namedWindow (castPtr cname) c'CV_WINDOW_NORMAL0
                              forever $ do

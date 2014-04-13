@@ -15,7 +15,7 @@ import Pipes
 import Control.Monad
 
 class Convertable (a :: Channel) (b :: Channel) where
-  cvtValue :: Num c => Mat a e -> Mat b e -> c
+  cvtValue :: Num c => Mat m n a e -> Mat m n b e -> c
 
 instance Convertable RGB BGR where
   cvtValue _ _ = c'CV_COLOR_RGB2BGR0
@@ -41,13 +41,13 @@ instance Convertable RGB YUV where
 instance Convertable YUV BGR where
   cvtValue _ _ = c'CV_COLOR_YUV2BGR0
 
-convertColorP :: Convertable c c' => Pipe (Mat c e) (Mat c' e) CV ()
+convertColorP :: Convertable c c' => Pipe (Mat m n c e) (Mat m n c' e) CV ()
 convertColorP = forever $ do 
                   m  <- await
                   m' <- lift $ convertColor m
                   yield m'
 
-convertColor :: Convertable c c' => Mat c e -> CV (Mat c' e)
+convertColor :: Convertable c c' => Mat m n c e -> CV (Mat m n c' e)
 convertColor m = do let m' = unsafeCreateMat
                     m'' <- clone m'
                     CV $ c'cv_cvtColor (extract m) (extract m'') (cvtValue m m'') 0
