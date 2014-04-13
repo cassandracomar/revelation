@@ -201,7 +201,7 @@ pixel :: Storable (ElemT c e) => V2 Int -> Lens' (Mat m n c e) (ElemT c e)
 pixel i = lens (getAt i) (setAt i)
 
 -- | provides the 8/24/48/etc. neighborhood around a pixel (including the pixel
--- itself). The first parameter is the max pixel distance from 
+-- | itself). The first parameter is the max pixel distance from 
 getNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => Int -> V2 Int -> Mat m n c e -> VS.Vector (VS.Vector (ElemT c e))
 getNeighborhood s (V2 i j) m = subMat m tl (br rs cs) ^. asVector
                                     where clampedLower k = if k < 0 then 0 else k
