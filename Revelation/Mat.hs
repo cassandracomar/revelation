@@ -111,9 +111,9 @@ instance CVElement (V3 Word8) where
 -- | A safe matrix creation function. This one gives you exactly what you ask
 -- | for, and guarantees that a matrix of the appropriate type and size is 
 -- | allocated. 
-createMat :: forall rs cs c e. (KnownNat rs, KnownNat cs, CVElement (ElemT c e)) => Mat m n c e
-createMat = MkMat $ c'cv_create_Mat_typed (fromIntegral . natVal $ (Proxy :: Proxy rs)) 
-                                          (fromIntegral . natVal $ (Proxy :: Proxy cs))
+createMat :: forall m n c e. (KnownNat m, KnownNat n, CVElement (ElemT c e)) => Mat m n c e
+createMat = MkMat $ c'cv_create_Mat_typed (fromIntegral . natVal $ (Proxy :: Proxy m)) 
+                                          (fromIntegral . natVal $ (Proxy :: Proxy n))
                                           $ cvElemType (Proxy :: Proxy (ElemT c e))
 
 -- | This return type potentially lies... use only if you're truly
@@ -134,15 +134,15 @@ createIdentity = MkMat $ c'cv_create_identity r r $ cvElemType (Proxy :: Proxy (
                   where r = fromIntegral . natVal $ (Proxy :: Proxy rs)
    
 -- | Allocates a matrix of the requested size and fills it with ones.
-ones :: forall rs cs c e. (KnownNat rs, KnownNat cs, CVElement (ElemT c e)) => Mat m n c e
-ones = MkMat $ c'cv_create_ones (fromIntegral . natVal $ (Proxy :: Proxy rs)) 
-                                (fromIntegral . natVal $ (Proxy :: Proxy cs))
+ones :: forall m n c e. (KnownNat m, KnownNat n, CVElement (ElemT c e)) => Mat m n c e
+ones = MkMat $ c'cv_create_ones (fromIntegral . natVal $ (Proxy :: Proxy m)) 
+                                (fromIntegral . natVal $ (Proxy :: Proxy n))
                                 $ cvElemType (Proxy :: Proxy (ElemT c e))
 
 -- | Allocates a matrix of the requested size and fills it with zeroes.
-zeros :: forall rs cs c e. (KnownNat rs, KnownNat cs, CVElement (ElemT c e)) => Mat m n c e
-zeros = MkMat $ c'cv_create_zeros (fromIntegral . natVal $ (Proxy :: Proxy rs)) 
-                                  (fromIntegral . natVal $ (Proxy :: Proxy cs))
+zeros :: forall m n c e. (KnownNat m, KnownNat n, CVElement (ElemT c e)) => Mat m n c e
+zeros = MkMat $ c'cv_create_zeros (fromIntegral . natVal $ (Proxy :: Proxy m)) 
+                                  (fromIntegral . natVal $ (Proxy :: Proxy n))
                                   $ cvElemType (Proxy :: Proxy (ElemT c e))
 
 -- | Extract the number of rows in the provide matrix (equivalent to field
@@ -202,7 +202,8 @@ pixel i = lens (getAt i) (setAt i)
 
 -- | provides the 8/24/48/etc. neighborhood around a pixel (including the pixel
 -- | itself). The first parameter is the max pixel distance from 
-getNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => Int -> V2 Int -> Mat m n c e -> VS.Vector (VS.Vector (ElemT c e))
+getNeighborhood :: (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => 
+                  Int -> V2 Int -> Mat m n c e -> VS.Vector (VS.Vector (ElemT c e))
 getNeighborhood s (V2 i j) m = subMat m tl (br rs cs) ^. asVector
                                     where clampedLower k = if k < 0 then 0 else k
                                           clampedHigher b k = if k >= b then b else k
@@ -254,7 +255,7 @@ fromMat m = S.unsafePerformIO $ do
 -- | the Vector of vectors.
 -- The Mat created this way is safe from mutation and is always equivalent
 -- to the Storable Vector passed in.
-toMat :: forall rs cs c e. (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => VS.Vector (VS.Vector (ElemT c e)) -> Mat m n c e
+toMat :: forall m n c e. (Storable (ElemT c e), Storable (VS.Vector (ElemT c e)), CVElement (ElemT c e)) => VS.Vector (VS.Vector (ElemT c e)) -> Mat m n c e
 toMat v = MkMat . S.unsafePerformIO $ VS.unsafeWith v (return . makeMat)
               where makeMat p = c'cv_create_Mat_with_data (fromIntegral rs) (fromIntegral cs) (cvElemType (Proxy :: Proxy (ElemT c e))) p 
                     rs = VS.length v
