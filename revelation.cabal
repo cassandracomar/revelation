@@ -23,6 +23,7 @@ library
                           , Revelation.Utils
                           , Revelation.Video
                           , Revelation.Point
+                          , Revelation.Rect
     ghc-options:            -O2 -pgml g++ "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lopencv_c" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
     build-depends:          base >=4.6 && <5.0
                           , Cabal >=1.16

@@ -1,12 +1,14 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE FlexibleInstances #-}
  
 module Revelation.Point (
 
-  Point( extractPt2i, extractPt2f, extractPt2d
-       , extractPt3i, extractPt3f, extractPt3d )
+  Point(..)
 , Dim(..)
 , PElemT
+, ExtractPoint(..)
 
 ) where
 
@@ -27,6 +29,27 @@ data instance Point Two Double = MkPoint2d { extractPt2d :: Ptr C'Point2d }
 data instance Point Three Int32 = MkPoint3i { extractPt3i :: Ptr C'Point3i }
 data instance Point Three Float = MkPoint3f { extractPt3f :: Ptr C'Point3f }
 data instance Point Three Double = MkPoint3d { extractPt3d :: Ptr C'Point3d }
+
+class ExtractPoint p p' | p -> p' where
+  extractPt :: p -> p'
+
+instance ExtractPoint (Point Two Int32) (Ptr C'Point) where
+  extractPt = extractPt2i
+
+instance ExtractPoint (Point Three Int32) (Ptr C'Point3i) where
+  extractPt = extractPt3i
+
+instance ExtractPoint (Point Two Float) (Ptr C'Point2f) where
+  extractPt = extractPt2f
+
+instance ExtractPoint (Point Three Float) (Ptr C'Point3f) where
+  extractPt = extractPt3f
+
+instance ExtractPoint (Point Two Double) (Ptr C'Point2d) where
+  extractPt = extractPt2d
+
+instance ExtractPoint (Point Three Double) (Ptr C'Point3d) where
+  extractPt = extractPt3d
 
 type family PElemT (s :: Dim) :: * -> * where
   PElemT Two = V2
